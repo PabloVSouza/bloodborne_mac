@@ -422,8 +422,14 @@ GraphicsPipeline::GraphicsPipeline(
 
     auto [pipeline_result, pipe] =
         device.createGraphicsPipelineUnique(pipeline_cache, pipeline_info);
-    ASSERT_MSG(pipeline_result == vk::Result::eSuccess, "Failed to create graphics pipeline: {}",
-               vk::to_string(pipeline_result));
+    if (pipeline_result != vk::Result::eSuccess) {
+        // bbport: Metal (MoltenVK) rejects some pipelines Vulkan drivers accept, such as fragment
+        // inputs the vertex shader does not write. The pipeline stays empty: its draws are
+        // skipped (PipelineCache returns no pipeline) instead of ending the game.
+        LOG_ERROR(Render_Vulkan, "Failed to create graphics pipeline {}: {}; its draws are skipped",
+                  debug_str, vk::to_string(pipeline_result));
+        return;
+    }
     pipeline = std::move(pipe);
     SetObjectName(device, *pipeline, "Graphics Pipeline {}", debug_str);
 }
