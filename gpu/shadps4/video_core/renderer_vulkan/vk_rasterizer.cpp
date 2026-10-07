@@ -103,6 +103,12 @@ bool Rasterizer::HonestLabels() {
     // it then overwrote a command buffer recorded there (a bad PM4 packet, macOS).
     static const bool on = [] {
         const char* env = std::getenv("BB_HONEST_LABELS");
+        // BB_HONEST_LABELS=0 (experiment): early fences even then, to measure what waiting for
+        // the GPU costs; the game may then reuse memory a GPU write still lands in.
+        if (env && env[0] == '0') {
+            std::printf("GPU: BB_HONEST_LABELS=0, fences written early (experiment: may corrupt)\n");
+            return false;
+        }
         const bool enabled = (env && env[0] == '1') || VideoCore::GuestInPlace() ||
                              VideoCore::UnifiedGuestMemory();
         if (enabled) {
