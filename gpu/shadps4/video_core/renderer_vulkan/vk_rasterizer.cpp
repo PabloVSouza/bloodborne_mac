@@ -98,9 +98,13 @@ vk::ImageView Rasterizer::NullImageView(const Shader::ImageResource& desc,
 }
 
 bool Rasterizer::HonestLabels() {
+    // bbport: with the GPU writing the game's memory itself (BB_GUEST_IN_PLACE, macOS unified
+    // memory) a fence written early lets the game reuse memory a GPU write has yet to land in:
+    // it then overwrote a command buffer recorded there (a bad PM4 packet, macOS).
     static const bool on = [] {
         const char* env = std::getenv("BB_HONEST_LABELS");
-        const bool enabled = (env && env[0] == '1') || VideoCore::GuestInPlace();
+        const bool enabled = (env && env[0] == '1') || VideoCore::GuestInPlace() ||
+                             VideoCore::UnifiedGuestMemory();
         if (enabled) {
             std::printf("GPU: fences written when the GPU has finished the work before them "
                         "(BB_HONEST_LABELS=1)\n");
