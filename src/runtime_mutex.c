@@ -125,7 +125,7 @@ static ABI int32_t mutex_timedlock(GuestMutex **mutex, uint32_t usec) {
     if (e) return e;
     struct timespec end;
     if (deadline_after(&end, usec)) return orbis_error(EINVAL);
-    e = timed_error(pthread_mutex_timedlock(&(*mutex)->native, &end));
+    e = timed_error(bb_mutex_timedlock(&(*mutex)->native, &end));
     if (!e) ++locks;
     return e;
 }

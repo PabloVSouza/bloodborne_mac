@@ -272,6 +272,10 @@ bool Instance::CreateDevice() {
     ASSERT_MSG(robustness2_features.nullDescriptor,
                "Required Vulkan feature unavailable: nullDescriptor");
 
+#ifdef __APPLE__
+    // bbport: a portability driver (MoltenVK) must have its subset extension enabled.
+    add_extension("VK_KHR_portability_subset");
+#endif
     // Optional
     maintenance_5 = add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
     maintenance_8 = add_extension(VK_KHR_MAINTENANCE_8_EXTENSION_NAME);

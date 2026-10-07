@@ -11,6 +11,7 @@
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <unistd.h>
+#include "platform.h"
 #include <functional>
 
 #include "bbport_copy.h"
@@ -56,7 +57,7 @@ void ReportProducer(const char* what, u32 other, const char* other_where, const 
     if (producer_reports.fetch_add(1, std::memory_order_relaxed) >= 8) {
         return;
     }
-    const u32 self = u32(gettid());
+    const u32 self = u32(bb_gettid());
     std::fprintf(stderr,
                  "Scheduler: %s: thread %u (%s) entering %s while thread %u (%s) is in %s\n",
                  what, self, ThreadName(self).c_str(), where, other, ThreadName(other).c_str(),
@@ -69,7 +70,7 @@ void ReportProducer(const char* what, u32 other, const char* other_where, const 
 
 Scheduler::ProducerScope::ProducerScope(Scheduler& scheduler_, const char* where) noexcept
     : scheduler{scheduler_}, previous_where{producer_scope_where} {
-    static thread_local const u32 tid = u32(gettid());
+    static thread_local const u32 tid = u32(bb_gettid());
     producer_scope_where = where;
     u32 expected = 0;
     if (scheduler.producer_tid.compare_exchange_strong(expected, tid,
@@ -401,7 +402,7 @@ void Scheduler::HandOver() {
         inside && (std::strcmp(inside, "Record") == 0 || std::strcmp(inside, "RecordData") == 0 ||
                    std::strcmp(inside, "RecordOrdered") == 0 ||
                    std::strcmp(inside, "RetireChunk") == 0)) {
-        ReportProducer("REENTERED recording", u32(gettid()), inside, "HandOver");
+        ReportProducer("REENTERED recording", u32(bb_gettid()), inside, "HandOver");
     }
     ProducerScope producer{*this, "HandOver"};
     if (!record_chunk || !ordered_chunk) {

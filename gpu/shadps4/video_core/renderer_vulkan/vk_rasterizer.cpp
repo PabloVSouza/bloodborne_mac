@@ -856,9 +856,10 @@ void Rasterizer::PostDraw(const Pipeline* pipeline, const PreparedDraw* used_pre
     }
     std::array<u16, AmdGpu::RegDirty::NumBlocks> blocks;
     u32 num_blocks = 0;
-    for (size_t block = dirty.blocks._Find_first(); block < dirty.blocks.size();
-         block = dirty.blocks._Find_next(block)) {
-        blocks[num_blocks++] = static_cast<u16>(block);
+    for (size_t block = 0; block < dirty.blocks.size(); ++block) { // portable _Find_next
+        if (dirty.blocks.test(block)) {
+            blocks[num_blocks++] = static_cast<u16>(block);
+        }
     }
     const auto stages =
         pipeline ? pipeline->GetStages() : std::span<const Shader::Info* const>{};

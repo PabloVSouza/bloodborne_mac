@@ -48,6 +48,9 @@ INTEL_TONEMAP='Intel Black Tonemap Fix'
 
 
 def intel_cpu(cpuinfo='/proc/cpuinfo'):
+    # macOS: the game is an x86-64 process; Rosetta 2 (and an Intel Mac) report GenuineIntel.
+    if sys.platform == 'darwin':
+        return True
     try:
         with open(cpuinfo) as f:
             return any(line.startswith('vendor_id') and 'GenuineIntel' in line for line in f)

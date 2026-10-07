@@ -178,8 +178,17 @@ int main(int argc, char **argv) {
         .pApplicationName = "bbport scene scaling probe",
         .apiVersion = VK_API_VERSION_1_3,
     };
+#ifdef __APPLE__
+    /* MoltenVK is a portability driver: listed only when the instance asks for it. */
+    static const char *const portability[] = {VK_KHR_PORTABILITY_ENUMERATION_EXTENSION_NAME};
+#endif
     const VkInstanceCreateInfo create = {
         .sType = VK_STRUCTURE_TYPE_INSTANCE_CREATE_INFO,
+#ifdef __APPLE__
+        .flags = VK_INSTANCE_CREATE_ENUMERATE_PORTABILITY_BIT_KHR,
+        .enabledExtensionCount = 1,
+        .ppEnabledExtensionNames = portability,
+#endif
         .pApplicationInfo = &app,
     };
     VkInstance instance = VK_NULL_HANDLE;

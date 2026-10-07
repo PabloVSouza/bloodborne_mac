@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stddef.h>
 #ifndef _WIN32
+#include "platform.h"
 #include <setjmp.h>
 /* Recovery point for speculative guest memory reads on this thread (probe.c fault handler). */
 extern __thread sigjmp_buf *runtime_fault_recover;
@@ -87,4 +88,5 @@ void runtime_savedata_configure(const char *title);
 uintptr_t runtime_savedata_resolve(const char *name);
 void runtime_savedata_report(void);
 void runtime_thread_attach_host(const char *name);
+#include "runtime_heap.h"
 #endif

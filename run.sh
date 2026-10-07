@@ -1,4 +1,11 @@
 #!/usr/bin/env bash
+# macOS ships bash 3.2; this script needs 4.4 or newer (brew install bash).
+if (( BASH_VERSINFO[0] < 4 || (BASH_VERSINFO[0] == 4 && BASH_VERSINFO[1] < 4) )); then
+    for candidate in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+        if [[ -x $candidate ]]; then exec "$candidate" "$0" "$@"; fi
+    done
+    echo 'bash 4.4 or newer is needed (macOS: brew install bash).' >&2; exit 1
+fi
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
 if [[ ${1:-} == --software ]]; then
@@ -10,6 +17,21 @@ if [[ ${1:-} == --software ]]; then
     fi
     if [[ -z ${VK_DRIVER_FILES:-} ]]; then echo 'Lavapipe not found; set VK_DRIVER_FILES.' >&2; exit 1; fi
     export VK_LOADER_LAYERS_DISABLE='~implicit~'
+fi
+# macOS: the game runs as an x86-64 process (Rosetta 2 on Apple Silicon) on MoltenVK.
+if [[ $(uname -s) == Darwin ]]; then
+    # The x86-64 MoltenVK from scripts/macos/build-deps.sh, unless a Vulkan driver is chosen.
+    icd=$PWD/deps/macos-x86_64/share/vulkan/icd.d/MoltenVK_icd.json
+    if [[ -z ${VK_DRIVER_FILES:-} && -f $icd ]]; then export VK_DRIVER_FILES=$icd; fi
+    export MVK_CONFIG_LOG_LEVEL=${MVK_CONFIG_LOG_LEVEL:-1} # errors only
+    # Rosetta runs AVX/AVX2/F16C/FMA/BMI code but hides them from CPUID unless asked: the game
+    # then sees the features of the PS4's CPU.
+    export ROSETTA_ADVERTISE_AVX=${ROSETTA_ADVERTISE_AVX:-1}
+    # The new memory model maps dma-buf chunks of GPU memory: Linux only.
+    if [[ ${BB_GUEST_IN_PLACE:-0} == 1 ]]; then
+        echo 'New memory model: not available on macOS; the default model is used' >&2
+    fi
+    export BB_GUEST_IN_PLACE=0
 fi
 # BB_PREBUILT=1 (packaged builds, the AppImage): out/bb-probe and its GPU library are installed
 # next to this script; nothing is built and no nix-shell is needed.

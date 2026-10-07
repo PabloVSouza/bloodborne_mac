@@ -11,6 +11,8 @@
 
 #pragma once
 
+#include "platform.h"
+
 #include <cstdlib>
 #include "bbport_threads.h"
 #include "bbport_sections.h"
@@ -198,7 +200,7 @@ private:
         Common::SetCurrentThreadName("bb:DrawRec");
         on_stage_b = true;
         BbSections::recording_thread = true;
-        stage_b_tid.store(static_cast<u32>(gettid()), std::memory_order_release);
+        stage_b_tid.store(static_cast<u32>(bb_gettid()), std::memory_order_release);
         u64 at = 0;
         while (true) {
             // Packets follow each other within microseconds while a frame is decoded: spin,

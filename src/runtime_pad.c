@@ -322,8 +322,8 @@ static void read_inject(void) {
     last_check=now;
     struct stat st;
     if (stat(path,&st)!=0) return;
-    if (st.st_mtim.tv_sec==mtime.tv_sec && st.st_mtim.tv_nsec==mtime.tv_nsec) return;
-    mtime=st.st_mtim;
+    if (BB_STAT_MTIM(&st).tv_sec==mtime.tv_sec && BB_STAT_MTIM(&st).tv_nsec==mtime.tv_nsec) return;
+    mtime=BB_STAT_MTIM(&st);
     FILE *f=fopen(path,"r");
     if (!f) return;
     static const struct { const char *name; uint32_t ps; } names[]={

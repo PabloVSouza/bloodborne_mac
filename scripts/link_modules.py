@@ -74,8 +74,11 @@ def module(path):
                 sha256=hashlib.sha256(source).hexdigest(), missing=missing)
 
 
-def patch_fs_loads(image, ph, base):
-    """Rewrite initial-exec `mov rax, fs:[0]` to GS: glibc owns FS on Linux."""
+def patch_fs_loads(image, ph, base, relocs):
+    """Rewrite initial-exec `mov rax, fs:[0]` to `mov rax, gs:[disp32]`: the host libc owns FS on
+    Linux. Each displacement gets a relocation of kind 3 (guest thread pointer slot): the loader
+    writes the GS offset at which the host keeps the guest TCB pointer (0 on Linux, where GS points
+    at the TCB; a pthread key's slot on macOS, where GS points at the thread's TSD array)."""
     patched = 0
     for p in ph:
         if p['type'] != 1 or not p['flags'] & 1:
@@ -84,6 +87,7 @@ def patch_fs_loads(image, ph, base):
         at = image.find(FS_LOAD, start, end)
         while at >= 0:
             image[at] = 0x65
+            relocs.append((at + 5, 3, 0, 0))
             patched += 1
             at = image.find(FS_LOAD, at + len(FS_LOAD), end)
     return patched
@@ -125,7 +129,7 @@ def link(game, out, module_names=DEFAULT_MODULES):
     exports, by_nid = {}, collections.defaultdict(list)
     table = []
     base = (size + 65535) & ~65535
-    fs_patched = patch_fs_loads(image, main['ph'], 0)
+    fs_patched = patch_fs_loads(image, main['ph'], 0, relocs)
     tls_module = 2
     for filename in module_names:
         m = module(game / 'sce_module' / filename)
@@ -189,7 +193,7 @@ def link(game, out, module_names=DEFAULT_MODULES):
                 exports[s['identity']] = entry_value
                 by_nid[(s['identity'][0], s['identity'][1][0])].append(entry_value)
                 count += 1
-        fs_patched += patch_fs_loads(image, m['ph'], base)
+        fs_patched += patch_fs_loads(image, m['ph'], base, relocs)
         table.append(dict(file=filename, base=base, size=modsize, init=base + m['tags'].get(12, 0),
                           tls_address=base + tls['vaddr'] if tls else 0, tls_memsz=tls['memsz'] if tls else 0,
                           tls_filesz=tls['filesz'] if tls else 0, tls_module=module_id,

@@ -33,8 +33,8 @@ static uint64_t pool_size_bytes(void) {
 #define POOL_SIZE pool_size_bytes()
 #define FLEXIBLE_SIZE (UINT64_C(448) * 1024 * 1024)
 #define PAGE UINT64_C(16384)
-#define USER_MIN UINT64_C(0x1000000000)
-#define USER_MAX UINT64_C(0xfc00000000)
+#define USER_MIN BB_USER_MIN
+#define USER_MAX BB_USER_MAX
 #define LIMIT 4096
 #define INVALID ((int32_t)UINT32_C(0x80020016))
 #define NO_MEMORY ((int32_t)UINT32_C(0x8002000c))
@@ -103,8 +103,8 @@ static int host_prot(int prot) {
 /* Direct memory occupies [0,POOL_SIZE) of the memfd, flexible memory [POOL_SIZE,+FLEX_SPAN). */
 static int pool(void) {
     if (pool_fd>=0) return 0;
-    pool_fd=memfd_create("bb-guest-memory", MFD_CLOEXEC);
-    if (pool_fd<0 || ftruncate(pool_fd,(off_t)(POOL_SIZE+FLEX_SPAN))) return -1;
+    pool_fd=bb_shared_memory("bb-guest-memory",POOL_SIZE+FLEX_SPAN);
+    if (pool_fd<0) return -1;
     void *view=mmap(NULL,POOL_SIZE+FLEX_SPAN,PROT_READ|PROT_WRITE,MAP_SHARED|MAP_NORESERVE,pool_fd,0);
     if (view==MAP_FAILED) return -1;
     backing_base=view;
@@ -159,12 +159,12 @@ static void zero_phys(uint64_t phys, uint64_t size) {
     for (uint64_t done=0;done<size;) {
         const uint64_t at=phys+done;
         if (!chunk_fds || at>=POOL_SIZE) {
-            fallocate(pool_fd,FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE,(off_t)at,(off_t)(size-done));
+            bb_shared_memory_zero(pool_fd,backing_base,at,size-done);
             return;
         }
         const uint64_t c=at/CHUNK, room=c*CHUNK+chunk_size(c)-at, n=size-done<room ? size-done : room;
         if (chunk_fds[c]>=0) memset(backing_base+at,0,n);
-        else fallocate(pool_fd,FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE,(off_t)at,(off_t)n);
+        else bb_shared_memory_zero(pool_fd,backing_base,at,n);
         done+=n;
     }
 }
@@ -202,7 +202,7 @@ static uint64_t flex_alloc(uint64_t size) {
 }
 static void flex_free(uint64_t phys, uint64_t size) {
     flex_set((phys-POOL_SIZE)/PAGE,size/PAGE,0);
-    fallocate(pool_fd,FALLOC_FL_PUNCH_HOLE|FALLOC_FL_KEEP_SIZE,(off_t)phys,(off_t)size);
+    bb_shared_memory_zero(pool_fd,backing_base,phys,size);
 }
 static size_t vma_index(uintptr_t a) { /* first VMA with end > a */
     size_t lo=0, hi=vma_count;
@@ -275,6 +275,10 @@ static int32_t place(void **inout, uint64_t size, int prot, int flags, uint64_t 
     uintptr_t address=(uintptr_t)*inout;
     if (flags & MAP_FIXED_FLAG) {
         if (!address || address%PAGE) return INVALID;
+#ifdef BB_MACOS
+        /* Outside the reserved game range a fixed mapping would replace host memory. */
+        if (address<USER_MIN || address>USER_MAX || size>USER_MAX-address) return INVALID;
+#endif
         if ((flags & MAP_NO_OVERWRITE) && overlaps(address,address+size,1)) return NO_MEMORY;
     } else {
         address=find_free(address,size,alignment);
@@ -370,7 +374,7 @@ static int32_t unmap_locked(uintptr_t start, uint64_t size) {
         }
     for (size_t i=vma_index(start); i<vma_count && vmas[i].start<end; ++i) {
         uintptr_t a=vmas[i].start>start ? vmas[i].start : start, b=vmas[i].end<end ? vmas[i].end : end;
-        if (munmap((void *)a,b-a)) return INVALID;
+        if (bb_unmap_guest(a,b-a)) return INVALID;
     }
     drop_range(start,end);
     return 0;
@@ -581,21 +585,8 @@ uintptr_t runtime_memory_resolve(const char *name) {
     return RUNTIME_LOOKUP(exports,name);
 }
 /* Host-owned memory the guest can see (image, stacks, trampolines) lives in
- * [LOW_MIN, USER_MIN): PS4 code packs pointers into 40-bit fields. */
-#define LOW_MIN UINT64_C(0x0800000000)
-static uintptr_t low_next=LOW_MIN;
-void *runtime_low_map(size_t size, int prot) {
-    size=align_up(size,PAGE);
-    write_lock();
-    void *p=MAP_FAILED;
-    while (low_next+size<=USER_MIN) {
-        p=mmap((void *)low_next,size,prot,MAP_PRIVATE|MAP_ANONYMOUS|MAP_FIXED_NOREPLACE,-1,0);
-        low_next+=size+PAGE; /* unmapped gap catches overruns */
-        if (p!=MAP_FAILED) break;
-    }
-    write_unlock();
-    return p==MAP_FAILED ? NULL : p;
-}
+ * [BB_LOW_MIN, BB_LOW_MAX) (platform.h): PS4 code packs pointers into 40-bit fields. */
+void *runtime_low_map(size_t size, int prot) { return bb_low_map(size,prot); }
 /* ---- GPU library interface (gpu/shim/bbgpu.cpp) ---- */
 /* Optimizations switched off at run time (diagnostics): the number in the file named by
  * BB_TOGGLE_FILE, re-read every 250 ms. Bits: 1 region cache, 2 fetch shader cache,

@@ -13,13 +13,8 @@
 #include <sched.h>
 #include <time.h>
 #include <unistd.h>
-#include <sys/syscall.h>
 #include <dlfcn.h>
-#include <dirent.h>
-#include <ucontext.h>
 #include <signal.h>
-#include <sys/uio.h>
-#include <sys/random.h>
 #include <sys/resource.h>
 #include <sys/time.h>
 #include <x86intrin.h>
@@ -201,7 +196,8 @@ typedef struct { GuestTimeval utime, stime; int64_t rest[14]; } GuestRusage;
 static ABI int32_t guest_getrusage(int who,GuestRusage *out) {
     struct rusage r;
     if (!out || (who!=0 && who!=1)) return fail_posix(EINVAL);
-    getrusage(who==0 ? RUSAGE_SELF : RUSAGE_THREAD,&r);
+    if (who==0) getrusage(RUSAGE_SELF,&r);
+    else bb_thread_cpu_time(&r.ru_utime,&r.ru_stime);
     memset(out,0,sizeof(*out));
     out->utime=(GuestTimeval){r.ru_utime.tv_sec,r.ru_utime.tv_usec};
     out->stime=(GuestTimeval){r.ru_stime.tv_sec,r.ru_stime.tv_usec};
@@ -212,7 +208,7 @@ static ABI int32_t guest_sysctl(const int32_t *name,uint32_t namelen,void *old,u
     if (!name || namelen<2 || new_value) return fail_posix(EINVAL);
     if (name[0]==1 && name[1]==37) { /* kern.arandom */
         if (!old || !oldlen) return fail_posix(EINVAL);
-        if (getrandom(old,(size_t)*oldlen,0)<0) return fail_posix(errno);
+        if (bb_random(old,(size_t)*oldlen)) return fail_posix(errno);
         return 0;
     }
     if (name[0]==6 && (name[1]==7 || name[1]==3)) { /* hw.pagesize / hw.ncpu */
@@ -333,11 +329,7 @@ void runtime_guest_call_sites(uint64_t out[3]);
 static void guest_call_sites(uint64_t out[3]) {
     const uintptr_t text_lo=0x800000000ull, text_hi=0x800000000ull+0x50d96dcull;
     static _Thread_local uintptr_t stack_hi;
-    if (!stack_hi) {
-        pthread_attr_t attr; void *base=NULL; size_t size=0;
-        if (!pthread_getattr_np(pthread_self(),&attr)) { pthread_attr_getstack(&attr,&base,&size); pthread_attr_destroy(&attr); }
-        stack_hi=(uintptr_t)base+size;
-    }
+    if (!stack_hi) stack_hi=bb_thread_stack_top();
     const uintptr_t *sp=(const uintptr_t *)__builtin_frame_address(0);
     int found=0;
     out[0]=out[1]=out[2]=0;
@@ -347,7 +339,7 @@ void runtime_wait_note(int kind, uint64_t ns) {
     static int enabled=-1;
     if (enabled<0) enabled=getenv("BB_FRAME_STATS")!=NULL;
     if (!enabled) return;
-    if (!wait_tid) wait_tid=(int)syscall(SYS_gettid);
+    if (!wait_tid) wait_tid=(int)bb_gettid();
     uint64_t sites[3];
     guest_call_sites(sites);
     const uint64_t key=((sites[0]<<20)^(sites[1]*0x9E3779B1ull)^(sites[2]<<7)^((uint64_t)wait_tid<<4)^(uint64_t)kind)|1;
@@ -398,15 +390,14 @@ static _Atomic uint64_t samples_total;
 static void sample_handler(int sig, siginfo_t *info, void *context) {
     (void)sig; (void)info;
     const ucontext_t *uc=(const ucontext_t *)context;
-    uint64_t rip=(uint64_t)uc->uc_mcontext.gregs[REG_RIP];
+    uint64_t rip=(uint64_t)BB_UC_RIP(uc);
     const uint64_t text_lo=0x800000000ull, text_hi=0x800000000ull+0x50d96dcull;
     /* Host code: keyed with its guest caller, the first return address into the game on the stack. */
     uint64_t caller=0;
     if (rip<text_lo || rip>=text_hi) {
         uint64_t stack[256]={0};
-        struct iovec local={stack,sizeof(stack)}, remote={(void *)uc->uc_mcontext.gregs[REG_RSP],sizeof(stack)};
-        const ssize_t got=process_vm_readv(getpid(),&local,1,&remote,1,0);
-        for (ssize_t i=0;i<got/8;++i) if (stack[i]>=text_lo && stack[i]<text_hi) { caller=stack[i]-text_lo; break; }
+        const size_t got=bb_read_memory(stack,(uintptr_t)BB_UC_RSP(uc),sizeof(stack));
+        for (size_t i=0;i<got/8;++i) if (stack[i]>=text_lo && stack[i]<text_hi) { caller=stack[i]-text_lo; break; }
     }
     const uint64_t key=(rip*0x9E3779B97F4A7C15ull)^caller^1;
     atomic_fetch_add(&samples_total,1);
@@ -422,24 +413,11 @@ static void sample_handler(int sig, siginfo_t *info, void *context) {
 }
 static void *sampler_main(void *arg) {
     const char *name=(const char *)arg;
-    pid_t tid=0;
-    while (!tid) {
-        DIR *dir=opendir("/proc/self/task");
-        struct dirent *e;
-        while (dir && (e=readdir(dir))) {
-            char path[300], comm[32]={0};
-            snprintf(path,sizeof(path),"/proc/self/task/%s/comm",e->d_name);
-            FILE *f=fopen(path,"r");
-            if (!f) continue;
-            if (fgets(comm,sizeof(comm),f) && !strncmp(comm,name,strlen(name))) tid=(pid_t)atoi(e->d_name);
-            fclose(f);
-        }
-        if (dir) closedir(dir);
-        if (!tid) sleep(1);
-    }
-    printf("Runtime: sampling thread %s (%d)\n",name,(int)tid);
+    uint64_t thread=0;
+    while (!(thread=bb_find_thread(name))) sleep(1);
+    printf("Runtime: sampling thread %s (%#llx)\n",name,(unsigned long long)thread);
     for (;;) {
-        if (syscall(SYS_tgkill,getpid(),tid,SIGPROF)) break;
+        if (bb_signal_thread(thread,SIGPROF)) break;
         struct timespec t={0,500000};
         nanosleep(&t,NULL);
     }

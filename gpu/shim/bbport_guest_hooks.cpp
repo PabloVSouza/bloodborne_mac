@@ -12,7 +12,7 @@
 #include <cstring>
 #include <sys/mman.h>
 #include <sys/uio.h>
-#include <ucontext.h>
+#include "platform.h"
 #include <unistd.h>
 
 extern "C" void runtime_memory_note_write(uintptr_t address, uint64_t size);
@@ -68,16 +68,16 @@ void* LoaderCopy(void* dst, const void* src, std::size_t size) {
 struct sigaction previous_action {};
 
 void OnTrap(int sig, siginfo_t* info, void* context) {
-    auto* g = static_cast<ucontext_t*>(context)->uc_mcontext.gregs;
-    const u64 rip = u64(g[REG_RIP]) - 1; // past the int3
+    auto* g = static_cast<ucontext_t*>(context);
+    const u64 rip = u64(BB_UC_RIP(g)) - 1; // past the int3
     if (rip == ImageBase + ReleaseCheck) {
-        const auto result = static_cast<std::int32_t>(g[REG_RAX] & 0xffffffff);
+        const auto result = static_cast<std::int32_t>(BB_UC_RAX(g) & 0xffffffff);
         BbHeapSites::NoteReleaseCheck(std::uint32_t(result));
-        g[REG_RIP] = greg_t(ImageBase + (result < 0 ? 0xbb5fc7 : ReleaseCheck + 2));
+        BB_UC_RIP(g) = u64(ImageBase + (result < 0 ? 0xbb5fc7 : ReleaseCheck + 2));
         return;
     }
     if (rip == ImageBase + CollectorEntry) {
-        const u64 allocator = u64(g[REG_RDI]);
+        const u64 allocator = u64(BB_UC_RDI(g));
         for (std::size_t i = 0; i < BbStats::range_allocators.size(); ++i) {
             u64 expected = 0;
             if (BbStats::range_allocators[i].load(std::memory_order_relaxed) == allocator ||
@@ -89,26 +89,26 @@ void OnTrap(int sig, siginfo_t* info, void* context) {
                 break;
             }
         }
-        g[REG_RSP] -= 8; // push rbp
-        *reinterpret_cast<u64*>(g[REG_RSP]) = u64(g[REG_RBP]);
-        g[REG_RIP] = greg_t(ImageBase + CollectorEntry + 1);
+        BB_UC_RSP(g) -= 8; // push rbp
+        *reinterpret_cast<u64*>(BB_UC_RSP(g)) = u64(BB_UC_RBP(g));
+        BB_UC_RIP(g) = u64(ImageBase + CollectorEntry + 1);
         return;
     }
     for (const u64 site : HeapAllocReturns) {
         if (rip != ImageBase + site) {
             continue;
         }
-        const u64 address = u64(g[REG_RAX]);
-        const u64 size = *reinterpret_cast<const u64*>(u64(g[REG_RBP]) - 0x50);
+        const u64 address = u64(BB_UC_RAX(g));
+        const u64 size = *reinterpret_cast<const u64*>(u64(BB_UC_RBP(g)) - 0x50);
         if (address != 0 && size != 0 && size < (u64(1) << 32)) {
             on_range_allocated(address, size);
         }
-        g[REG_RBX] = g[REG_RAX];
-        g[REG_RIP] = greg_t(ImageBase + site + sizeof(HeapAllocReturnCode));
+        BB_UC_RBX(g) = BB_UC_RAX(g);
+        BB_UC_RIP(g) = u64(ImageBase + site + sizeof(HeapAllocReturnCode));
         return;
     }
     if (rip == ImageBase + AllocReturn) {
-        if (const u64 node = u64(g[REG_RAX])) {
+        if (const u64 node = u64(BB_UC_RAX(g))) {
             const u64 start = *reinterpret_cast<const u64*>(node + 8);
             const u64 next = *reinterpret_cast<const u64*>(node + 0x18);
             const u64 end = next ? *reinterpret_cast<const u64*>(next + 8) : start;
@@ -116,8 +116,8 @@ void OnTrap(int sig, siginfo_t* info, void* context) {
                 on_range_allocated(start, end - start);
             }
         }
-        g[REG_RSP] += 0x18;
-        g[REG_RIP] = greg_t(ImageBase + AllocReturn + sizeof(AllocReturnCode));
+        BB_UC_RSP(g) += 0x18;
+        BB_UC_RIP(g) = u64(ImageBase + AllocReturn + sizeof(AllocReturnCode));
         return;
     }
     for (std::size_t i = 0; i < MemcpySites.size(); ++i) {
@@ -128,9 +128,9 @@ void OnTrap(int sig, siginfo_t* info, void* context) {
         hits[i].fetch_add(1, std::memory_order_relaxed);
         // The call, to LoaderCopy instead of the game's memcpy: push the return address, jump.
         const u64 ret = ImageBase + site.offset + 5;
-        g[REG_RSP] -= 8;
-        *reinterpret_cast<u64*>(g[REG_RSP]) = ret;
-        g[REG_RIP] = greg_t(reinterpret_cast<u64>(&LoaderCopy));
+        BB_UC_RSP(g) -= 8;
+        *reinterpret_cast<u64*>(BB_UC_RSP(g)) = ret;
+        BB_UC_RIP(g) = u64(reinterpret_cast<u64>(&LoaderCopy));
         return;
     }
     if (previous_action.sa_flags & SA_SIGINFO) {
@@ -149,8 +149,7 @@ void OnTrap(int sig, siginfo_t* info, void* context) {
 
 bool Patch(u64 address, const unsigned char* expected, std::size_t size) {
     unsigned char bytes[16]{};
-    iovec local{bytes, size}, remote{reinterpret_cast<void*>(address), size};
-    if (process_vm_readv(getpid(), &local, 1, &remote, 1, 0) != ssize_t(size) ||
+    if (bb_read_memory(bytes, address, size) != size ||
         std::memcmp(bytes, expected, size) != 0) {
         return false;
     }

@@ -7,7 +7,7 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
-#include <ucontext.h>
+#include "platform.h"
 #include <unistd.h>
 #include <x86intrin.h>
 
@@ -57,7 +57,7 @@ void Note(std::uint64_t address, const void* data, std::uint64_t size, Source so
 }
 
 void Record(std::uint64_t address, const void* data, std::uint64_t size, Source source) {
-    static thread_local const std::uint32_t tid = static_cast<std::uint32_t>(gettid());
+    static thread_local const std::uint32_t tid = static_cast<std::uint32_t>(bb_gettid());
     Entry e{address, size, 0, __rdtsc(), source, tid};
     std::memcpy(&e.first, data, size < 8 ? size : 8);
     Push(ring, head, e);
@@ -106,15 +106,15 @@ void DumpRange(std::uint64_t address, std::uint64_t size) {
 extern "C" void bbgpu_dump_guest_writes(void* ucontext) {
     using namespace BbWriteLog;
     const auto* uc = static_cast<const ucontext_t*>(ucontext);
-    const auto* g = uc->uc_mcontext.gregs;
-    BbFreeCheck::DumpAtFault(std::uint64_t(g[REG_RAX]), std::uint64_t(g[REG_R14]));
+    const auto* g = uc;
+    BbFreeCheck::DumpAtFault(std::uint64_t(BB_UC_RAX(g)), std::uint64_t(BB_UC_R14(g)));
     if (Mode() == 0) {
         return;
     }
-    const std::uint64_t regs[] = {std::uint64_t(g[REG_RAX]), std::uint64_t(g[REG_RBX]),
-                                  std::uint64_t(g[REG_RCX]), std::uint64_t(g[REG_RDX]),
-                                  std::uint64_t(g[REG_RSI]), std::uint64_t(g[REG_RDI]),
-                                  std::uint64_t(g[REG_R14]), std::uint64_t(g[REG_R15])};
+    const std::uint64_t regs[] = {std::uint64_t(BB_UC_RAX(g)), std::uint64_t(BB_UC_RBX(g)),
+                                  std::uint64_t(BB_UC_RCX(g)), std::uint64_t(BB_UC_RDX(g)),
+                                  std::uint64_t(BB_UC_RSI(g)), std::uint64_t(BB_UC_RDI(g)),
+                                  std::uint64_t(BB_UC_R14(g)), std::uint64_t(BB_UC_R15(g))};
     const char* names[] = {"rax", "rbx", "rcx", "rdx", "rsi", "rdi", "r14", "r15"};
     for (int i = 0; i < 8; ++i) {
         std::fprintf(stderr, "Write log: %s=%#llx\n", names[i], (unsigned long long)regs[i]);

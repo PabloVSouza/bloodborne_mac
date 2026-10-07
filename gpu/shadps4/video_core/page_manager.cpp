@@ -20,7 +20,7 @@
 #include <dlfcn.h>
 #include <string>
 #include <fmt/format.h>
-#include <ucontext.h>
+#include "platform.h"
 #include <unistd.h>
 #include "core/signals.h"
 #include "video_core/page_manager.h"
@@ -101,16 +101,15 @@ struct ImageFaultSite {
 std::array<ImageFaultSite, 256> image_fault_sites;
 
 void NoteFaultSite(void* context, VAddr address) {
-    const auto* g = static_cast<const ucontext_t*>(context)->uc_mcontext.gregs;
+    const auto* g = static_cast<const ucontext_t*>(context);
     current_fault_rip = 0;
-    const u64 rip = u64(g[REG_RIP]);
+    const u64 rip = u64(BB_UC_RIP(g));
     const bool guest_code = rip >= GuestImage && rip < GuestImageEnd;
     u64 caller = 0;
     if (guest_code) {
         // The caller: [rbp + 8] when the guest code keeps frames (its memcpy-like leaves do not).
         u64 saved[2] = {};
-        iovec local{saved, sizeof(saved)}, remote{reinterpret_cast<void*>(g[REG_RBP]), sizeof(saved)};
-        if (process_vm_readv(getpid(), &local, 1, &remote, 1, 0) == ssize_t(sizeof(saved)) &&
+        if (bb_read_memory(saved, u64(BB_UC_RBP(g)), sizeof(saved)) == sizeof(saved) &&
             saved[1] >= GuestImage && saved[1] < GuestImageEnd) {
             caller = saved[1];
         }
@@ -118,10 +117,8 @@ void NoteFaultSite(void* context, VAddr address) {
         // Host code (a libc import the port runs natively, the runtime): the first guest return
         // address on the stack is its guest caller.
         std::array<u64, 64> stack{};
-        iovec local{stack.data(), sizeof(stack)},
-            remote{reinterpret_cast<void*>(g[REG_RSP]), sizeof(stack)};
-        const ssize_t got = process_vm_readv(getpid(), &local, 1, &remote, 1, 0);
-        for (ssize_t i = 0; i < got / 8; ++i) {
+        const std::size_t got = bb_read_memory(stack.data(), u64(BB_UC_RSP(g)), sizeof(stack));
+        for (std::size_t i = 0; i < got / 8; ++i) {
             if (stack[i] >= GuestImage && stack[i] < GuestImageEnd) {
                 caller = stack[i];
                 break;
@@ -296,7 +293,7 @@ struct PageManager::Impl {
             BbStats::Timer timer{BbStats::t_write_faults};
             const bool handled = rasterizer->OnWriteFault(
                 addr, is_gpu_thread,
-                u64(static_cast<const ucontext_t*>(context)->uc_mcontext.gregs[REG_RIP]));
+                u64(BB_UC_RIP(static_cast<const ucontext_t*>(context))));
             current_fault_rip = 0;
             return handled;
         } else {

@@ -14,20 +14,23 @@
 #include <windows.h>
 #else
 #include <sys/mman.h>
+#ifndef __APPLE__
 #include <malloc.h>
+#endif
 #include <unistd.h>
 #include <signal.h>
-#include <ucontext.h>
 #include <fcntl.h>
 #include <dlfcn.h>
 #include <execinfo.h>
 #include <pthread.h>
-#include <sys/syscall.h>
-#include <sys/uio.h>
 #endif
 
 typedef struct { uint64_t address, size, flags; } Segment;
+/* kind 0: image-relative pointer, 1: import function, 2: import data, 3: GS displacement of a
+ * rewritten `mov rax, fs:[0]` (link_modules.py; 4 bytes, bb_guest_tls_displacement). */
 typedef struct { uint64_t target, kind, value, addend; } Reloc;
+enum { RELOC_TLS_SLOT = 3 };
+static uint64_t reloc_width(const Reloc *r) { return r->kind == RELOC_TLS_SLOT ? 4 : 8; }
 static char (*names)[128];
 static uint64_t import_count;
 static unsigned char *image;
@@ -84,7 +87,7 @@ static ABI __attribute__((noreturn)) void unresolved(uint32_t id, uintptr_t argu
     uintptr_t caller=(uintptr_t)__builtin_return_address(0)-(uintptr_t)image;
     for (uint64_t m=0;m<module_count;++m)
         if (caller>=modules[m].base && caller-modules[m].base<modules[m].size)
-            printf("Caller in linked module %" PRIu64 " (%s): +0x%" PRIxPTR "\n",m,m==0 ? "libc.prx" : "system module",caller-modules[m].base);
+            printf("Caller in linked module %" PRIu64 " (%s): +0x%" PRIx64 "\n",m,m==0 ? "libc.prx" : "system module",(uint64_t)(caller-modules[m].base));
     runtime_report();
     puts(entered_game ? "Original guest entry instructions executed; game initialization is incomplete." :
                         "Native libc initialization is incomplete; game entry has not run.");
@@ -94,7 +97,12 @@ static ABI __attribute__((noreturn)) void unresolved(uint32_t id, uintptr_t argu
 #ifndef _WIN32
 /* enter_on_stack(entry, arg0, arg1, stack_top): call entry(arg0,arg1) on a new stack. */
 void enter_on_stack(void *entry, void *arg0, void *arg1, void *top);
-__asm__(".text\n.globl enter_on_stack\nenter_on_stack:\n"
+#ifdef __APPLE__
+#define ENTER_ON_STACK "_enter_on_stack" /* Mach-O C symbols carry a leading underscore */
+#else
+#define ENTER_ON_STACK "enter_on_stack"
+#endif
+__asm__(".text\n.globl " ENTER_ON_STACK "\n" ENTER_ON_STACK ":\n"
         " push %rbp\n mov %rsp,%rbp\n and $-16,%rcx\n mov %rcx,%rsp\n"
         " mov %rdi,%rax\n mov %rsi,%rdi\n mov %rdx,%rsi\n call *%rax\n"
         " mov %rbp,%rsp\n pop %rbp\n ret\n");
@@ -103,7 +111,7 @@ static ABI void guest_exit(void) { puts("Runtime: process finalizer callback rea
 #ifndef _WIN32
 static void fault(int sig, siginfo_t *info, void *context) {
     /* GPU page tracking (write-protected guest pages) is resolved first. */
-    if (gpu_enabled && sig == SIGSEGV && bbgpu_handle_fault(context, info->si_addr)) return;
+    if (gpu_enabled && BB_IS_ACCESS_FAULT(sig) && bbgpu_handle_fault(context, info->si_addr)) return;
     /* A speculative guest memory read (runtime_memory.c) failed: resume its recovery point. */
     if ((sig == SIGSEGV || sig == SIGBUS) && runtime_fault_recover) {
         sigjmp_buf *recover = runtime_fault_recover;
@@ -116,7 +124,7 @@ static void fault(int sig, siginfo_t *info, void *context) {
     }
     /* The process is terminating: dladdr/snprintf are acceptable here. */
     ucontext_t *uc = context;
-    uintptr_t rip = (uintptr_t)uc->uc_mcontext.gregs[REG_RIP];
+    uintptr_t rip = (uintptr_t)BB_UC_RIP(uc);
     char line[512];
     Dl_info where;
     if (rip - (uintptr_t)image < 0x10000000)
@@ -130,24 +138,14 @@ static void fault(int sig, siginfo_t *info, void *context) {
     { ssize_t written_=write(2, line, strlen(line)); (void)written_; }
     if (gpu_enabled) bbgpu_dump_guest_writes(context);
     /* Outside the image and any shared object (generated code, a freed mapping): the mapping
-     * from /proc/self/maps, and the thread. */
+     * that holds RIP, and the thread. */
     if (rip - (uintptr_t)image >= 0x10000000 && !(dladdr((void *)rip, &where) && where.dli_fname)) {
         char thread[32] = "?";
         pthread_getname_np(pthread_self(), thread, sizeof(thread));
         snprintf(line, sizeof(line), "  thread %s; mapping of RIP: ", thread);
         { ssize_t written_=write(2, line, strlen(line)); (void)written_; }
-        FILE *maps = fopen("/proc/self/maps", "r");
-        int found = 0;
-        while (maps && fgets(line, sizeof(line), maps)) {
-            unsigned long from, to;
-            if (sscanf(line, "%lx-%lx", &from, &to) == 2 && rip >= from && rip < to) {
-                ssize_t written_=write(2, line, strlen(line)); (void)written_;
-                found = 1;
-                break;
-            }
-        }
-        if (maps) fclose(maps);
-        if (!found) { ssize_t written_=write(2, "none\n", 5); (void)written_; }
+        if (bb_describe_mapping(rip, line, sizeof(line))) { ssize_t written_=write(2, line, strlen(line)); (void)written_; }
+        else { ssize_t written_=write(2, "none\n", 5); (void)written_; }
     }
     /* Host call chain (frames with unwind info; guest frames end it). */
     void *frames[32];
@@ -164,7 +162,7 @@ static void fault(int sig, siginfo_t *info, void *context) {
 }
 #endif
 /* Watchdog: dump RIP and the rbp frame chain of every thread (guest offsets
- * when inside the image). Reads use process_vm_readv so bad frames cannot fault. */
+ * when inside the image). Reads use bb_read_memory so bad frames cannot fault. */
 static uintptr_t exe_base;
 static void write_hex(char *out, uint64_t v) {
     const char digits[] = "0123456789abcdef";
@@ -172,18 +170,17 @@ static void write_hex(char *out, uint64_t v) {
 }
 static void dump_frames(ucontext_t *uc) {
     char line[] = "  tid=0000000000000000 rip=0000000000000000 image-relative=0000000000000000 host-relative=0000000000000000\n";
-    uintptr_t rip=(uintptr_t)uc->uc_mcontext.gregs[REG_RIP], rbp=(uintptr_t)uc->uc_mcontext.gregs[REG_RBP];
-    uint64_t tid=(uint64_t)gettid();
+    uintptr_t rip=(uintptr_t)BB_UC_RIP(uc), rbp=(uintptr_t)BB_UC_RBP(uc);
+    uint64_t tid=bb_gettid();
     /* First argument register: the lock address when a thread waits on a futex. */
     char arg[]="  tid=0000000000000000 rdi=0000000000000000\n";
-    write_hex(arg+6,tid); write_hex(arg+27,(uint64_t)uc->uc_mcontext.gregs[REG_RDI]);
+    write_hex(arg+6,tid); write_hex(arg+27,(uint64_t)BB_UC_RDI(uc));
     { ssize_t written_=write(2,arg,sizeof(arg)-1); (void)written_; }
     for (int depth=0; depth<24; ++depth) {
         write_hex(line+6,tid); write_hex(line+27,rip); write_hex(line+59,rip-(uintptr_t)image); write_hex(line+90,rip-exe_base);
         { ssize_t written_=write(2,line,sizeof(line)-1); (void)written_; }
         uintptr_t frame[2];
-        struct iovec local={frame,sizeof(frame)}, remote={(void *)rbp,sizeof(frame)};
-        if (!rbp || process_vm_readv(getpid(),&local,1,&remote,1,0)!=(ssize_t)sizeof(frame)) break;
+        if (!rbp || bb_read_memory(frame,rbp,sizeof(frame))!=sizeof(frame)) break;
         if (frame[0]<=rbp) break;
         rbp=frame[0]; rip=frame[1];
     }
@@ -194,17 +191,7 @@ static void watchdog(int sig, siginfo_t *info, void *context) {
     const char head[]="STOP: watchdog timeout; thread stacks:\n";
     { ssize_t written_=write(2,head,sizeof(head)-1); (void)written_; }
     dump_frames(context);
-    int dir=open("/proc/self/task",O_RDONLY|O_DIRECTORY);
-    char buffer[4096];
-    long n;
-    pid_t self=gettid();
-    while (dir>=0 && (n=syscall(SYS_getdents64,dir,buffer,sizeof(buffer)))>0)
-        for (long at=0; at<n;) {
-            struct { uint64_t ino; int64_t off; unsigned short reclen; unsigned char type; char name[]; } *d=(void *)(buffer+at);
-            pid_t tid=(pid_t)strtol(d->name,NULL,10);
-            if (tid>0 && tid!=self) { syscall(SYS_tgkill,getpid(),tid,SIGUSR2); usleep(20000); }
-            at+=d->reclen;
-        }
+    bb_signal_other_threads(SIGUSR2,20000);
     usleep(100000);
     _exit(128 + sig);
 }
@@ -252,7 +239,7 @@ static void apply_patches(const char *path, Segment *segments, uint64_t ns, cons
             fail("bad patch entry");
         uint64_t slots[sizeof(data)/8]; size_t nslots=0;
         for (uint64_t r=0;r<nr;++r) {
-            if (!(relocs[r].target<offset+length && offset<relocs[r].target+8)) continue;
+            if (!(relocs[r].target<offset+length && offset<relocs[r].target+reloc_width(&relocs[r]))) continue;
             uint64_t target=relocs[r].target, value;
             if (relocs[r].kind || target<offset || target+8>offset+length) fail("patch overlaps a relocation");
             memcpy(&value,data+(target-offset),8);
@@ -280,7 +267,7 @@ void runtime_restart(void) {
     fflush(NULL);
     puts("Runtime: restarting through run.sh");
 #ifndef _WIN32
-    syscall(SYS_close_range, 3u, ~0u, 0u);
+    bb_close_from(3);
     execlp("bash", "bash", "run.sh", (char *)NULL);
     perror("runtime_restart: exec");
     _exit(1);
@@ -289,9 +276,10 @@ void runtime_restart(void) {
 
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
-#ifndef _WIN32
+#if !defined(_WIN32) && !defined(__APPLE__)
     /* Keep host heap objects handed to the guest (thread handles, TLS) in the
-       non-PIE brk heap, i.e. below 1 TiB: the guest packs pointers into 40 bits. */
+       non-PIE brk heap, i.e. below 1 TiB: the guest packs pointers into 40 bits.
+       (macOS: the runtime allocates from its own heap there, runtime_heap.h.) */
     mallopt(M_ARENA_MAX,1);
     mallopt(M_MMAP_THRESHOLD,32*1024*1024);
 #endif
@@ -428,8 +416,9 @@ int main(int argc, char **argv) {
         relocs[i].kind = read64(f);
         relocs[i].value = read64(f);
         relocs[i].addend = read64(f);
-        if (!mapped(segments, ns, relocs[i].target, 8) || relocs[i].kind > 2 ||
-            (relocs[i].kind && relocs[i].value >= import_count) ||
+        if (!mapped(segments, ns, relocs[i].target, reloc_width(&relocs[i])) || relocs[i].kind > RELOC_TLS_SLOT ||
+            ((relocs[i].kind == 1 || relocs[i].kind == 2) && relocs[i].value >= import_count) ||
+            (relocs[i].kind == RELOC_TLS_SLOT && relocs[i].value) ||
             (relocs[i].kind != 2 && relocs[i].addend) || relocs[i].addend >= page_size) fail("bad relocation");
     }
     for (uint64_t m=0;m<module_count;++m)
@@ -477,7 +466,9 @@ int main(int argc, char **argv) {
         t[8] = 0x48; t[9] = 0xb8; memcpy(t + 10, &handler, 8);
         t[18] = 0xff; t[19] = 0xe0;
     }
+    const uint32_t tls_displacement = bb_guest_tls_displacement();
     for (uint64_t i = 0; i < nr; ++i) {
+        if (relocs[i].kind == RELOC_TLS_SLOT) { memcpy(image + relocs[i].target, &tls_displacement, 4); continue; }
         uintptr_t value = relocs[i].kind == 2 ? (uintptr_t)(data_traps + page_size * relocs[i].value + relocs[i].addend)
                         : relocs[i].kind == 1 ? (uintptr_t)(traps + 32 * relocs[i].value)
                         : (uintptr_t)image + relocs[i].value;

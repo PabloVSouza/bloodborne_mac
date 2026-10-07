@@ -9,6 +9,7 @@
 #include <unistd.h>
 #include <array>
 #include <time.h>
+#include "platform.h"
 #include "bbport_threads.h"
 #include "bbport_timeline.h"
 #include "bbport_copy.h"
@@ -118,13 +119,13 @@ void Liverpool::ProcessCommands() {
 
 void Liverpool::Process(std::stop_token stoken) {
     Common::SetCurrentThreadName("shadPS4:GpuCommandProcessor");
+#ifdef __linux__
     if (clockid_t clock; pthread_getcpuclockid(pthread_self(), &clock) == 0) {
         BbStats::gpu_thread_clock.store(static_cast<int>(clock));
     }
-    gpu_id = std::this_thread::get_id();
-#ifdef __linux__
-    gpu_tid = gettid();
 #endif
+    gpu_id = std::this_thread::get_id();
+    gpu_tid = static_cast<u32>(bb_gettid());
 
     while (!stoken.stop_requested()) {
         // BB_HONEST_LABELS: fences (and GPU idle) wait for work not submitted yet. Submitted once
@@ -1636,7 +1637,12 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
     }
     if (seq != NoSeq && BbStats::enabled) {
         BbStats::submissions.fetch_add(1, std::memory_order_relaxed);
+#ifdef __linux__
         if (rusage usage{}; getrusage(RUSAGE_THREAD, &usage) == 0) {
+#else // no per-thread rusage on macOS: CPU times only, no context switch counts
+        if (rusage usage{}; true) {
+            bb_thread_cpu_time(&usage.ru_utime, &usage.ru_stime);
+#endif
             BbStats::gpu_user_us.store(u64(usage.ru_utime.tv_sec) * 1000000 + usage.ru_utime.tv_usec,
                                        std::memory_order_relaxed);
             BbStats::gpu_sys_us.store(u64(usage.ru_stime.tv_sec) * 1000000 + usage.ru_stime.tv_usec,
@@ -2135,8 +2141,7 @@ void Liverpool::CheckSubmittedCopy(const SubmittedCopy& copy, u64 seq) {
         std::array<u32, 1024> buf;
         for (std::size_t at = 0; at < dwords; at += buf.size()) {
             const std::size_t n = std::min(buf.size(), dwords - at);
-            iovec local{buf.data(), n * 4}, remote{const_cast<u32*>(guest + at), n * 4};
-            if (process_vm_readv(getpid(), &local, 1, &remote, 1, 0) != ssize_t(n * 4)) {
+            if (bb_read_memory(buf.data(), reinterpret_cast<uintptr_t>(guest + at), n * 4) != n * 4) {
                 // bbport BB_GUEST_IN_PLACE: dma-buf guest memory is not readable that way; still
                 // mapped, it is read directly.
                 int prot = 0, type = -1;
@@ -2188,8 +2193,8 @@ void Liverpool::CheckSubmittedCopy(const SubmittedCopy& copy, u64 seq) {
     const std::size_t dwords = dcb_change != -1 ? copy.dcb_dwords : copy.ccb_dwords;
     const std::size_t from = at >= 8 ? at - 8 : 0, to = std::min<std::size_t>(dwords, at + 8);
     std::array<u32, 16> now{};
-    iovec local{now.data(), (to - from) * 4}, remote{const_cast<u32*>(guest + from), (to - from) * 4};
-    const bool readable = process_vm_readv(getpid(), &local, 1, &remote, 1, 0) == ssize_t((to - from) * 4);
+    const bool readable =
+        bb_read_memory(now.data(), reinterpret_cast<uintptr_t>(guest + from), (to - from) * 4) == (to - from) * 4;
     std::printf("  submitted:");
     for (std::size_t i = from; i < to; ++i) {
         std::printf(i == std::size_t(at) ? " [%08x]" : " %08x", kept[i]);

@@ -16,7 +16,7 @@
 #include <sys/mman.h>
 #include <sys/syscall.h>
 #include <csignal>
-#include <ucontext.h>
+#include "platform.h"
 #include <unordered_set>
 #include <sys/uio.h>
 #include <unistd.h>
@@ -113,7 +113,7 @@ u64 NowNs() {
 }
 
 u32 Tid() {
-    static thread_local const u32 tid = u32(gettid());
+    static thread_local const u32 tid = u32(bb_gettid());
     return tid;
 }
 
@@ -270,9 +270,7 @@ void PrintBlock(const unsigned char* bytes, u64 page, u64 block) {
 }
 
 bool ReadPage(u64 page, unsigned char* out) {
-    iovec local{out, PageSize};
-    iovec remote{reinterpret_cast<void*>(page), PageSize};
-    return process_vm_readv(getpid(), &local, 1, &remote, 1, 0) == ssize_t(PageSize);
+    return bb_read_memory(out, page, PageSize) == PageSize;
 }
 
 /// What the watcher saw of a page's blocks: when each was last seen taken and released by the
@@ -284,7 +282,7 @@ struct Track {
 };
 
 void Watcher() {
-    pthread_setname_np(pthread_self(), "bbFreeCheck");
+    bb_set_thread_name("bbFreeCheck");
     std::array<u64, 256> reported{};
     u32 reported_next = 0;
     std::unordered_map<u64, Track> tracks;
@@ -677,11 +675,10 @@ bool TrapEnabled() {
     return TrapMode() != 0;
 }
 bool ReadQword(u64 address, u64& value) {
-    iovec local{&value, 8}, remote{reinterpret_cast<void*>(address), 8};
-    return process_vm_readv(getpid(), &local, 1, &remote, 1, 0) == 8;
+    return bb_read_memory(&value, address, 8) == 8;
 }
 u32 SignalTid() {
-    return u32(syscall(SYS_gettid));
+    return u32(bb_gettid());
 }
 void NoteTrapDecoded(u64 label) {
     const u64 page = label & ~(PageSize - 1);
@@ -689,8 +686,7 @@ void NoteTrapDecoded(u64 label) {
         return;
     }
     Header h;
-    iovec local{&h, sizeof(h)}, remote{reinterpret_cast<void*>(page + HeaderOffset), sizeof(h)};
-    if (process_vm_readv(getpid(), &local, 1, &remote, 1, 0) != ssize_t(sizeof(h)) ||
+    if (bb_read_memory(&h, page + HeaderOffset, sizeof(h)) != sizeof(h) ||
         !Plausible(page, h)) {
         return;
     }
@@ -761,7 +757,7 @@ void OnGcHook(void* ucontext);
 
 void OnStepTrap(int sig, siginfo_t* info, void* ucontext) {
     // BB_LABEL_TRAP=2: the breakpoints (RIP is past the int3).
-    const u64 rip = u64(static_cast<ucontext_t*>(ucontext)->uc_mcontext.gregs[REG_RIP]);
+    const u64 rip = u64(BB_UC_RIP(static_cast<ucontext_t*>(ucontext)));
     if (rip == FreeHook + 1) {
         OnFreeHook(ucontext);
         return;
@@ -777,7 +773,7 @@ void OnStepTrap(int sig, siginfo_t* info, void* ucontext) {
         }
         const u64 page = slot.page.exchange(0, std::memory_order_acq_rel);
         slot.tid.store(0, std::memory_order_release);
-        static_cast<ucontext_t*>(ucontext)->uc_mcontext.gregs[REG_EFL] &= ~TrapFlag;
+        BB_UC_EFLAGS(static_cast<ucontext_t*>(ucontext)) &= ~TrapFlag;
         auto& t = Trap();
         std::scoped_lock lk{t.mutex};
         if (page && t.read_only.count(page)) {
@@ -803,8 +799,7 @@ void OnStepTrap(int sig, siginfo_t* info, void* ucontext) {
 /// int3 over the first byte of an instruction the hook then performs itself.
 bool PatchInt3(u64 address, std::initializer_list<unsigned char> expected) {
     unsigned char bytes[8]{};
-    iovec local{bytes, expected.size()}, remote{reinterpret_cast<void*>(address), expected.size()};
-    if (process_vm_readv(getpid(), &local, 1, &remote, 1, 0) != ssize_t(expected.size()) ||
+    if (bb_read_memory(bytes, address, expected.size()) != expected.size() ||
         std::memcmp(bytes, expected.begin(), expected.size()) != 0) {
         std::fprintf(stderr, "Free check: hook skipped (unexpected code at +%#llx)\n",
                      (unsigned long long)(address - ImageBase));
@@ -845,7 +840,7 @@ bool ArmStep(void* ucontext, u64 page) {
         if (slot.tid.load(std::memory_order_acquire) == tid ||
             slot.tid.compare_exchange_strong(expected, tid, std::memory_order_acq_rel)) {
             slot.page.store(page, std::memory_order_release);
-            static_cast<ucontext_t*>(ucontext)->uc_mcontext.gregs[REG_EFL] |= TrapFlag;
+            BB_UC_EFLAGS(static_cast<ucontext_t*>(ucontext)) |= TrapFlag;
             return true;
         }
     }
@@ -889,16 +884,16 @@ int AppendHistory(char* line, int n, int size, u64 label, const char* name) {
 
 /// The guest call chain at a breakpoint or fault: [rsp] (a leaf's return address) and the
 /// rbp frames, as guest offsets.
-int AppendStack(char* line, int n, int size, const greg_t* g, bool leaf) {
+int AppendStack(char* line, int n, int size, const ucontext_t* g, bool leaf) {
     if (leaf) {
         u64 ret = 0;
-        if (ReadQword(u64(g[REG_RSP]), ret)) {
+        if (ReadQword(u64(BB_UC_RSP(g)), ret)) {
             n += std::snprintf(line + n, size - n, "\n  caller: %s%#llx", IsGuest(ret) ? "+" : "",
                                (unsigned long long)(IsGuest(ret) ? ret - ImageBase : ret));
         }
     }
     n += std::snprintf(line + n, size - n, "\n  frames:");
-    u64 rbp = u64(g[REG_RBP]);
+    u64 rbp = u64(BB_UC_RBP(g));
     for (int i = 0; i < 16 && rbp && n < size - 24; ++i) {
         u64 saved = 0, ret = 0;
         if (!ReadQword(rbp, saved) || !ReadQword(rbp + 8, ret)) {
@@ -955,10 +950,10 @@ void Emit(char* line, int n, int size) {
 /// The guest allocator's release (int3): performs the replaced `mov rax, rsi`; a label block
 /// whose fence has not landed is reported with the caller.
 void OnFreeHook(void* ucontext) {
-    auto* g = static_cast<ucontext_t*>(ucontext)->uc_mcontext.gregs;
-    g[REG_RAX] = g[REG_RSI];
-    g[REG_RIP] = greg_t(FreeHook + 3);
-    const u64 block = u64(g[REG_RSI]);
+    auto* g = static_cast<ucontext_t*>(ucontext);
+    BB_UC_RAX(g) = BB_UC_RSI(g);
+    BB_UC_RIP(g) = u64(FreeHook + 3);
+    const u64 block = u64(BB_UC_RSI(g));
     Pending p;
     if (!FindPending(block, p)) {
         return;
@@ -983,10 +978,10 @@ void OnFreeHook(void* ucontext) {
 /// block taken as done, its first qword the label (or bit 0: a pointer to the batch's label),
 /// eax what the collector read there (4). Reported when that label's fence has not landed.
 void OnGcHook(void* ucontext) {
-    auto* g = static_cast<ucontext_t*>(ucontext)->uc_mcontext.gregs;
-    g[REG_RCX] = greg_t(*reinterpret_cast<const u64*>(u64(g[REG_RSP]) + 0x28));
-    g[REG_RIP] = greg_t(GcHook + 5);
-    const u64 node = u64(g[REG_R14]);
+    auto* g = static_cast<ucontext_t*>(ucontext);
+    BB_UC_RCX(g) = u64(*reinterpret_cast<const u64*>(u64(BB_UC_RSP(g)) + 0x28));
+    BB_UC_RIP(g) = u64(GcHook + 5);
+    const u64 node = u64(BB_UC_R14(g));
     u64 raw = 0;
     ReadQword(node, raw);
     const u64 label = (raw & 1) ? raw & ~1ull : node;
@@ -1004,7 +999,7 @@ void OnGcHook(void* ucontext) {
                           "Free check: TAKEN AS DONE block %#llx, tid %u, at %.3f s: first qword "
                           "%#llx, read %#x",
                           (unsigned long long)node, SignalTid(), NowNs() / 1e9,
-                          (unsigned long long)raw, unsigned(g[REG_RAX]));
+                          (unsigned long long)raw, unsigned(BB_UC_RAX(g)));
     if (label_pending) {
         n += std::snprintf(line + n, sizeof(line) - n, "\n  label %#llx: ",
                            (unsigned long long)label);
@@ -1043,8 +1038,8 @@ bool OnTrapFault(void* ucontext, u64 address) {
         t.read_only.erase(page);
     }
     lk.unlock();
-    const auto* g = static_cast<const ucontext_t*>(ucontext)->uc_mcontext.gregs;
-    if (!hit || !IsGuest(u64(g[REG_RIP]))) {
+    const auto* g = static_cast<const ucontext_t*>(ucontext);
+    if (!hit || !IsGuest(u64(BB_UC_RIP(g)))) {
         return true;
     }
     t.hits.fetch_add(1, std::memory_order_relaxed);
@@ -1056,9 +1051,9 @@ bool OnTrapFault(void* ucontext, u64 address) {
                           "Free check: TRAP guest write %#llx into a label block, tid %u, at %.3f "
                           "s: rip +%#llx rdi %#llx rsi %#llx rax %#llx rcx %#llx\n  ",
                           (unsigned long long)address, SignalTid(), NowNs() / 1e9,
-                          (unsigned long long)(u64(g[REG_RIP]) - ImageBase),
-                          (unsigned long long)g[REG_RDI], (unsigned long long)g[REG_RSI],
-                          (unsigned long long)g[REG_RAX], (unsigned long long)g[REG_RCX]);
+                          (unsigned long long)(u64(BB_UC_RIP(g)) - ImageBase),
+                          (unsigned long long)BB_UC_RDI(g), (unsigned long long)BB_UC_RSI(g),
+                          (unsigned long long)BB_UC_RAX(g), (unsigned long long)BB_UC_RCX(g));
     n = AppendState(line, n, sizeof(line), p);
     n = AppendStack(line, n, sizeof(line), g, true);
     u64 old = 0;
