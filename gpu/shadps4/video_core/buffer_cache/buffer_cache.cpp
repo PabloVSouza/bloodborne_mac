@@ -546,9 +546,22 @@ BufferCache::BufferCache(const Vulkan::Instance& instance_, Vulkan::Scheduler& s
         (blocks_per_arena_page * NUM_ARENA_PAGES) * sizeof(vk::DeviceAddress);
     fault_manager = std::make_unique<FaultManager>(instance, scheduler, *this, block_shift,
                                                    blocks_per_arena_page * NUM_ARENA_PAGES);
+    // bbport UnifiedGuestMemory: the table is host-visible and written by the CPU (UnifiedPageTable):
+    // a GPU copy per update ended the render pass it fell into (a store and reload of all its
+    // attachments on Apple's tile-based GPUs, ~140 a second). Cleared by the CPU too, so no GPU
+    // fill can land after entries written meanwhile.
     bda_pagetable_buffer = std::make_unique<Buffer>(
-        instance, 0, bda_pagetable_size, MemoryType::DeviceLocal, "BDA Page Table Buffer");
-    runtime.FillBuffer(bda_pagetable_buffer.get(), 0u, bda_pagetable_size, 0u);
+        instance, 0, bda_pagetable_size,
+        UnifiedGuestMemory() ? MemoryType::Stream : MemoryType::DeviceLocal,
+        "BDA Page Table Buffer");
+    if (UnifiedGuestMemory()) {
+        ASSERT_MSG(!bda_pagetable_buffer->mapped_data.empty(),
+                   "The BDA page table needs host-visible memory");
+        std::memset(bda_pagetable_buffer->mapped_data.data(), 0, bda_pagetable_size);
+        bda_pagetable_buffer->Flush(0, bda_pagetable_size);
+    } else {
+        runtime.FillBuffer(bda_pagetable_buffer.get(), 0u, bda_pagetable_size, 0u);
+    }
 }
 
 BufferCache::~BufferCache() = default;
@@ -2695,27 +2708,16 @@ void BufferCache::UnifiedPageTable(VAddr addr, u64 size) {
     if (entries.empty()) {
         return;
     }
-    const auto staging = staging_pool.Request(entries.size() * sizeof(vk::DeviceAddress),
-                                              MemoryType::HostUncached);
-    auto* out = reinterpret_cast<vk::DeviceAddress*>(staging.mapped);
-    boost::container::small_vector<vk::BufferCopy, 8> copies;
-    u64 offset = staging.offset;
-    for (std::size_t i = 0; i < entries.size();) {
-        std::size_t run = 1;
-        while (i + run < entries.size() && entries[i + run].first == entries[i].first + run) {
-            ++run;
-        }
-        for (std::size_t j = 0; j < run; ++j) {
-            out[i + j] = entries[i + j].second;
-        }
-        copies.emplace_back(offset, entries[i].first * sizeof(vk::DeviceAddress),
-                            run * sizeof(vk::DeviceAddress));
-        unified_table_blocks.Add({entries[i].first, entries[i].first + run});
-        offset += run * sizeof(vk::DeviceAddress);
-        i += run;
+    // Written in place (host-visible table): read by commands recorded after this, submitted
+    // after these host writes.
+    auto* table = reinterpret_cast<vk::DeviceAddress*>(bda_pagetable_buffer->mapped_data.data());
+    for (const auto& [block, address] : entries) {
+        table[block] = address;
+        unified_table_blocks.Add({block, block + 1});
     }
-    staging.Flush();
-    runtime.CopyBuffer(staging.buffer, bda_pagetable_buffer.get(), copies);
+    bda_pagetable_buffer->Flush(entries.front().first * sizeof(vk::DeviceAddress),
+                                (entries.back().first - entries.front().first + 1) *
+                                    sizeof(vk::DeviceAddress));
 }
 
 void BufferCache::ProcessUnifiedUnmaps() {
@@ -2731,8 +2733,10 @@ void BufferCache::ProcessUnifiedUnmaps() {
     for (const auto& [addr, size] : unmaps) {
         const u64 first = addr >> block_shift, last = (addr + size - 1) >> block_shift;
         unified_table_blocks.Subtract(first, last + 1);
-        runtime.FillBuffer(bda_pagetable_buffer.get(), first * sizeof(vk::DeviceAddress),
-                           (last - first + 1) * sizeof(vk::DeviceAddress), 0u);
+        std::memset(bda_pagetable_buffer->mapped_data.data() + first * sizeof(vk::DeviceAddress), 0,
+                    (last - first + 1) * sizeof(vk::DeviceAddress));
+        bda_pagetable_buffer->Flush(first * sizeof(vk::DeviceAddress),
+                                    (last - first + 1) * sizeof(vk::DeviceAddress));
     }
 }
 
