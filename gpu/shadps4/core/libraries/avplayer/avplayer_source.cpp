@@ -254,6 +254,10 @@ bool AvPlayerSource::Start() {
                       m_video_stream_index.value());
             return false;
         }
+        // bbport: decoded on all cores (FFmpeg decodes on one thread by default); one Rosetta-
+        // translated core could not keep up with the movies (macOS).
+        m_video_codec_context->thread_count = 0;
+        m_video_codec_context->thread_type = FF_THREAD_FRAME | FF_THREAD_SLICE;
         if (avcodec_open2(m_video_codec_context.get(), decoder, nullptr) < 0) {
             LOG_ERROR(Lib_AvPlayer, "Could not open avcodec for video stream {}.",
                       m_video_stream_index.value());
