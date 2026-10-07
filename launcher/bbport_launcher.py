@@ -187,6 +187,7 @@ def game_environment(s):
     env["BB_PATCHES_DIR"] = str(patches_dir(s))
     env["BB_PATCHES_CONFIG"] = str(DATA_DIR / "patches.json")
     env["BB_LANGUAGE"] = s["language"]
+    env["BB_UI_LANGUAGE"] = language()  # the in-game menu follows the launcher's language
     env["BB_FULLSCREEN"] = "1" if s["fullscreen"] else "0"
     env["BB_PRESENT_MODE"] = s["present_mode"]
     if s.get("gamepad"):
