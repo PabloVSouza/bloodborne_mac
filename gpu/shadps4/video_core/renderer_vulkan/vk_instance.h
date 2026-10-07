@@ -98,6 +98,15 @@ public:
     u32 GetReadbackQueueFamilyIndex() const {
         return readback_family_index;
     }
+    /// bbport: host memory can be imported (VK_EXT_external_memory_host; macOS unified memory).
+    bool IsExternalMemoryHostSupported() const {
+        return external_memory_host;
+    }
+    /// bbport: buffers can be sparse (else the buffer cache uses the game's memory in place).
+    bool IsSparseBufferSupported() const {
+        return features.sparseBinding && features.sparseResidencyBuffer;
+    }
+
     /// bbport: empty bindings may use null descriptors (else NullResources stand-ins).
     bool IsNullDescriptorSupported() const {
         return null_descriptor;
@@ -566,6 +575,7 @@ private:
     u32 queue_family_index{0};
     bool custom_border_color{};
     bool robust_buffer_access2{};
+    bool external_memory_host{};
     bool null_descriptor{};
     bool fragment_shader_barycentric{};
     bool amd_shader_explicit_vertex_parameter{};

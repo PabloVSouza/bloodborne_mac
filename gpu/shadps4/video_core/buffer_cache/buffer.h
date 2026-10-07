@@ -31,6 +31,10 @@ namespace VideoCore {
 bool GuestInPlace();
 /// The driver cannot bind guest memory to the arena: BB_GUEST_IN_PLACE stays off from now on.
 void DisableGuestInPlace();
+/// bbport (macOS, MoltenVK): the driver has no sparse buffers. The game's memory pool (direct and
+/// flexible memory) is imported as one buffer and every guest buffer is used where it lives, as
+/// Apple GPUs share the CPU's memory: no arenas, no uploads, no readbacks.
+bool UnifiedGuestMemory();
 /// Whether CPU writes to GPU memory are caught by page protection. Off with BB_GUEST_IN_PLACE: the
 /// GPU side learns of writes from the writers (file reads, the game's resource loaders, its own
 /// DMA and command writes); BB_WRITE_TRACKING=1 brings the protection back.
@@ -99,6 +103,10 @@ struct Buffer {
     /// bbport BB_GUEST_IN_PLACE: a buffer over memory owned elsewhere (a guest memory chunk,
     /// exported as a dma-buf): transfers and texel/storage reads, no device address.
     explicit Buffer(const Vulkan::Instance& instance, u64 size_bytes_, vk::DeviceMemory memory,
+                    std::string_view debug_name);
+    /// bbport (macOS unified memory): a buffer over host memory imported as it is
+    /// (VK_EXT_external_memory_host): every use, a device address, and its host mapping.
+    explicit Buffer(const Vulkan::Instance& instance, void* host_memory, u64 size_bytes_,
                     std::string_view debug_name);
 
     Buffer& operator=(const Buffer&) = delete;

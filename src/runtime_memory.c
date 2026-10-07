@@ -227,7 +227,8 @@ static int split_at(uintptr_t a) {
     if (i==vma_count || vmas[i].start>=a) return 0;
     Vma right=vmas[i];
     right.start=a;
-    if (right.kind==KIND_DIRECT) right.phys+=a-vmas[i].start;
+    /* Direct and flexible memory both record their offset in the pool (flex_free uses it). */
+    if (right.kind==KIND_DIRECT || right.kind==KIND_FLEXIBLE) right.phys+=a-vmas[i].start;
     vmas[i].end=a;
     return vma_insert(i+1,right);
 }
@@ -709,6 +710,29 @@ int runtime_memory_direct_phys(uintptr_t address, uint64_t *phys, uintptr_t *end
         *end=vmas[i].end;
     }
     read_unlock();
+    return ok;
+}
+/* bbport (macOS unified memory): as runtime_memory_direct_phys, for direct and flexible memory:
+ * the offset in the pool (runtime_memory_pool_view), which holds both. */
+int runtime_memory_pool_phys(uintptr_t address, uint64_t *phys, uintptr_t *end) {
+    read_lock();
+    const size_t i=vma_index(address);
+    const int ok = i<vma_count && vmas[i].start<=address && address<vmas[i].end &&
+                   (vmas[i].kind==KIND_DIRECT || vmas[i].kind==KIND_FLEXIBLE);
+    if (ok) {
+        *phys=vmas[i].phys+(address-vmas[i].start);
+        *end=vmas[i].end;
+    }
+    read_unlock();
+    return ok;
+}
+/* bbport (macOS unified memory): the host view of the whole pool (direct memory, then flexible
+ * memory), created now if needed. The GPU imports it once: the game's mappings alias it. */
+int runtime_memory_pool_view(void **base, uint64_t *size) {
+    write_lock();
+    const int ok=!pool();
+    if (ok) { *base=backing_base; *size=POOL_SIZE+FLEX_SPAN; }
+    write_unlock();
     return ok;
 }
 /* bbport: protection and direct memory type of the mapping at address (type -1: not direct

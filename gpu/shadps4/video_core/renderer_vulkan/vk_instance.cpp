@@ -282,6 +282,9 @@ bool Instance::CreateDevice() {
 #ifdef __APPLE__
     // bbport: a portability driver (MoltenVK) must have its subset extension enabled.
     add_extension("VK_KHR_portability_subset");
+    // bbport: without sparse buffers the game's memory is imported as one buffer (unified memory,
+    // BufferCache).
+    external_memory_host = add_extension(VK_EXT_EXTERNAL_MEMORY_HOST_EXTENSION_NAME);
 #endif
     // Optional
     maintenance_5 = add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);

@@ -35,6 +35,8 @@
 
 extern "C" int runtime_memory_vma_info(uintptr_t address, int* prot, int* type, uintptr_t* end);
 extern "C" int runtime_memory_direct_phys(uintptr_t address, uint64_t* phys, uintptr_t* end);
+extern "C" int runtime_memory_pool_phys(uintptr_t address, uint64_t* phys, uintptr_t* end);
+extern "C" int runtime_memory_pool_view(void** base, uint64_t* size);
 
 namespace VideoCore {
 
@@ -364,7 +366,7 @@ int PreuploadMode() {
     return mode;
 }
 bool PreuploadEnabled() {
-    return PreuploadMode() != 0;
+    return PreuploadMode() != 0 && !UnifiedGuestMemory(); // nothing to upload into
 }
 } // namespace
 
@@ -407,6 +409,10 @@ bool GarlicInVram() {
 
 namespace {
 std::atomic<bool> in_place_disabled{false};
+std::atomic<bool> unified_memory{false};
+}
+bool UnifiedGuestMemory() {
+    return unified_memory.load(std::memory_order_relaxed);
 }
 void DisableGuestInPlace() {
     in_place_disabled.store(true, std::memory_order_relaxed);
@@ -475,6 +481,23 @@ BufferCache::BufferCache(const Vulkan::Instance& instance_, Vulkan::Scheduler& s
       gds_buffer{instance, 0, GDS_BUFFER_SIZE, MemoryType::Stream, "GDS Buffer"},
       memory_semaphore{instance} {
     integrated_gpu = instance.IsIntegrated();
+    // bbport (macOS, MoltenVK): no sparse buffers. The game's memory pool is imported once; its
+    // mappings alias it, so every guest buffer is a range of it (UnifiedRange).
+    if (!instance.IsSparseBufferSupported()) {
+        void* pool = nullptr;
+        u64 pool_size = 0;
+        ASSERT_MSG(instance.IsExternalMemoryHostSupported() &&
+                       runtime_memory_pool_view(&pool, &pool_size),
+                   "The GPU has no sparse buffers and cannot import the game's memory");
+        pool_buffer = std::make_unique<Buffer>(instance, pool, pool_size, "Guest memory pool");
+        unified_memory.store(true, std::memory_order_relaxed);
+        if (GuestInPlace()) {
+            DisableGuestInPlace(); // the same idea, through sparse arenas
+        }
+        std::printf("Guest memory: no sparse buffers; the GPU uses the game's memory in place "
+                    "(%llu MiB imported)\n",
+                    static_cast<unsigned long long>(pool_size >> 20));
+    }
     // bbport: the PC memory model needs the game's direct memory in dma-buf chunks the runtime can
     // map at any offset (BbGuestMemory::Usable). Without them it is off, as BB_GUEST_IN_PLACE=0.
     if (GuestInPlace() && !BbGuestMemory::Usable(instance)) {
@@ -502,7 +525,10 @@ BufferCache::BufferCache(const Vulkan::Instance& instance_, Vulkan::Scheduler& s
         .pCreateInfo = &probe_ci,
     };
     const auto device = instance.GetDevice();
-    const auto reqs = device.getBufferMemoryRequirements(req_info).memoryRequirements;
+    // Unified memory: no sparse alignment to follow; blocks only size the BDA page table.
+    const auto reqs = UnifiedGuestMemory()
+                          ? vk::MemoryRequirements{.alignment = 64_KB, .memoryTypeBits = ~0u}
+                          : device.getBufferMemoryRequirements(req_info).memoryRequirements;
     block_size = Common::AlignUp(std::max<u64>(reqs.alignment, MIN_BLOCK_SIZE), reqs.alignment);
     ASSERT_MSG(std::popcount(block_size) == 1, "Sparse block size {} is not a power of 2",
                block_size);
@@ -528,6 +554,9 @@ BufferCache::BufferCache(const Vulkan::Instance& instance_, Vulkan::Scheduler& s
 BufferCache::~BufferCache() = default;
 
 void BufferCache::InvalidateMemory(VAddr device_addr, u64 size, bool assume_locks) {
+    if (UnifiedGuestMemory()) {
+        return; // the GPU reads the game's memory itself: nothing to invalidate
+    }
     memory_tracker->InvalidateRegion(device_addr, size, [this, device_addr, size, assume_locks] {
         ReadMemory(device_addr, size, true, assume_locks);
     });
@@ -573,6 +602,9 @@ void BufferCache::ExtendWriteFault(VAddr device_addr, u64 guest_rip) {
 }
 
 void BufferCache::ReadMemory(VAddr device_addr, u64 size, bool is_write, bool assume_locks) {
+    if (UnifiedGuestMemory()) {
+        return; // GPU writes land in the game's memory: nothing to read back
+    }
     BbStats::readbacks.fetch_add(1, std::memory_order_relaxed);
     std::array<char, 16> requester{};
     if (Readbacks()) {
@@ -881,6 +913,24 @@ std::pair<const Buffer*, u64> BufferCache::ObtainBuffer(VAddr device_addr, u32 s
     if (is_written && !shadows.empty()) {
         DropShadows(device_addr, size);
     }
+    // bbport UnifiedGuestMemory: as BB_GUEST_IN_PLACE without its VRAM copies. Small read-only
+    // bindings still take the stream path below (renaming against later command writes).
+    if (UnifiedGuestMemory()) {
+        ProcessUnifiedUnmaps();
+        if (is_written || size > STREAM_THRESHOLD || IsRegionGpuModified(device_addr, size)) {
+            if (const auto range = UnifiedRange(device_addr, size)) {
+                if (is_written) {
+                    WriteTicks().Note(device_addr, size, scheduler.CurrentTick());
+                } else if (is_texel_buffer) {
+                    SynchronizeMemoryFromImage(range->first, range->second, device_addr, size);
+                }
+                return *range;
+            }
+            if (size > STREAM_THRESHOLD || is_written) {
+                return UnifiedCopy(device_addr, size, is_written);
+            }
+        }
+    }
     if (GuestInPlace() &&
         (is_written || size > STREAM_THRESHOLD || IsRegionGpuModified(device_addr, size))) {
         const u64 first_block = device_addr >> block_shift;
@@ -912,7 +962,7 @@ std::pair<const Buffer*, u64> BufferCache::ObtainBuffer(VAddr device_addr, u32 s
                 BbStats::bound_in_place_written_bytes.fetch_add(size, std::memory_order_relaxed);
             }
             if (is_texel_buffer && !is_written) {
-                SynchronizeMemoryFromImage(arena, device_addr, size);
+                SynchronizeMemoryFromImage(arena, arena->Offset(device_addr), device_addr, size);
             }
             TraceBinding(device_addr, size, is_written, is_written ? 0 : 2);
             if (!is_written && !is_texel_buffer) {
@@ -982,6 +1032,13 @@ std::pair<const Buffer*, u64> BufferCache::ObtainBuffer(VAddr device_addr, u32 s
 }
 
 std::pair<const Buffer*, u64> BufferCache::ObtainBufferForImage(VAddr device_addr, u32 size) {
+    // bbport UnifiedGuestMemory: texture data is read by the GPU where it is.
+    if (UnifiedGuestMemory()) {
+        ProcessUnifiedUnmaps();
+        if (const auto range = UnifiedRange(device_addr, size)) {
+            return *range;
+        }
+    }
     // bbport BB_GUEST_IN_PLACE: texture data is read by the GPU from the game's memory itself:
     // through the arena where it is bound in place, else (BB_CHUNK_TEXTURES) from its guest
     // memory chunk.
@@ -1065,8 +1122,9 @@ bool BufferCache::IsRegionGpuModified(VAddr addr, size_t size) {
     if (memory_tracker->IsRegionGpuModified(addr, size)) {
         return true;
     }
-    // bbport BB_GUEST_IN_PLACE: GPU writes are not tracked per page; one not done yet counts.
-    if (GuestInPlace()) {
+    // bbport BB_GUEST_IN_PLACE, UnifiedGuestMemory: GPU writes are not tracked per page; one not
+    // done yet counts.
+    if (GuestInPlace() || UnifiedGuestMemory()) {
         const u64 tick = WriteTicks().Newest(addr, size);
         if (tick == 0 || scheduler.GetWorkSemaphore()->IsFree(tick)) {
             return false;
@@ -2138,7 +2196,7 @@ void BufferCache::QueuePromotions(u64 submitted) {
 }
 
 void BufferCache::UnmapInPlace(VAddr addr, u64 size) {
-    if (!GuestInPlace() || size == 0) {
+    if (!(GuestInPlace() || UnifiedGuestMemory()) || size == 0) {
         return;
     }
     std::scoped_lock lk{pending_unmaps_mutex};
@@ -2209,7 +2267,8 @@ bool BufferCache::SynchronizeMemory(const Buffer* arena, VAddr device_addr, u32 
     // bbport BB_GUEST_IN_PLACE: the arena is the game's memory there: nothing to upload, no
     // write tracking, and GPU writes need no readback. Images aliasing it still sync.
     if (IsInPlace(device_addr, size)) {
-        return is_texel_buffer && !is_written && SynchronizeMemoryFromImage(arena, device_addr, size);
+        return is_texel_buffer && !is_written &&
+               SynchronizeMemoryFromImage(arena, arena->Offset(device_addr), device_addr, size);
     }
     // Partly in place: only the parts in VRAM are synced. An upload over a block in place would
     // write an older copy of the game's memory back into it after the game wrote it again.
@@ -2307,7 +2366,7 @@ bool BufferCache::SynchronizeMemory(const Buffer* arena, VAddr device_addr, u32 
         runtime.CopyFromGuestChunk(chunk_buffer, arena, std::span{&copy, 1});
     }
     if (is_texel_buffer && !is_written) {
-        return SynchronizeMemoryFromImage(arena, device_addr, size);
+        return SynchronizeMemoryFromImage(arena, arena->Offset(device_addr), device_addr, size);
     }
     return false;
 }
@@ -2390,11 +2449,12 @@ const Buffer* BufferCache::UploadCopies(const Buffer* arena, std::span<vk::Buffe
     return staging.buffer;
 }
 
-bool BufferCache::SynchronizeMemoryFromImage(const Buffer* arena, VAddr device_addr, u32 size) {
+bool BufferCache::SynchronizeMemoryFromImage(const Buffer* arena, u64 arena_offset,
+                                             VAddr device_addr, u32 size) {
     if (auto type = texture_cache.IsMeta(device_addr)) {
         if (*type == TextureCache::MetaType::HTile) {
             static constexpr u32 ZmaskUncompressed = 0xf;
-            runtime.FillBuffer(arena, arena->Offset(device_addr), size, ZmaskUncompressed);
+            runtime.FillBuffer(arena, arena_offset, size, ZmaskUncompressed);
             return true;
         } else {
             LOG_WARNING(Render_Vulkan, "Unhandled metadata type {}", magic_enum::enum_name(*type));
@@ -2419,7 +2479,6 @@ bool BufferCache::SynchronizeMemoryFromImage(const Buffer* arena, VAddr device_a
     ASSERT_MSG(device_addr == image.info.guest_address,
                "Texel buffer aliases image subresources {:x} : {:x}", device_addr,
                image.info.guest_address);
-    const u64 arena_offset = arena->Offset(device_addr);
     boost::container::small_vector<vk::BufferImageCopy, 8> buffer_copies;
     for (u32 mip = 0; mip < image.info.resources.levels; mip++) {
         const auto& mip_info = image.info.mips_layout[mip];
@@ -2602,6 +2661,93 @@ void BufferCache::Preupload(u64 budget) {
     BbStats::preupload_bytes.fetch_add(
         BbStats::buffer_upload_bytes.load(std::memory_order_relaxed) - uploaded_before,
         std::memory_order_relaxed);
+}
+
+std::optional<std::pair<const Buffer*, u64>> BufferCache::UnifiedRange(VAddr addr, u64 size) {
+    u64 phys = 0;
+    uintptr_t end = 0;
+    if (size == 0 || !runtime_memory_pool_phys(addr, &phys, &end) || addr + size > end) {
+        return std::nullopt;
+    }
+    UnifiedPageTable(addr, size);
+    return std::pair<const Buffer*, u64>{pool_buffer.get(), phys};
+}
+
+void BufferCache::UnifiedPageTable(VAddr addr, u64 size) {
+    const u64 first = addr >> block_shift, last = (addr + size - 1) >> block_shift;
+    if (unified_table_blocks.Contains(first, last + 1)) {
+        return;
+    }
+    // Each block's entry is where its first byte of the range would be in the pool: a block shared
+    // by two mappings (64 KiB blocks, 16 KiB guest pages) points at the one requested here.
+    std::vector<std::pair<u64, vk::DeviceAddress>> entries;
+    unified_table_blocks.ForEachGap(first, last + 1, [&](u64 start, u64 end) {
+        for (u64 block = start; block < end; ++block) {
+            const VAddr at = std::max<VAddr>(block << block_shift, addr);
+            u64 phys = 0;
+            uintptr_t mapping_end = 0;
+            if (runtime_memory_pool_phys(at, &phys, &mapping_end)) {
+                const u64 into_block = at - (block << block_shift);
+                entries.emplace_back(block, pool_buffer->BufferDeviceAddress() + phys - into_block);
+            }
+        }
+    });
+    if (entries.empty()) {
+        return;
+    }
+    const auto staging = staging_pool.Request(entries.size() * sizeof(vk::DeviceAddress),
+                                              MemoryType::HostUncached);
+    auto* out = reinterpret_cast<vk::DeviceAddress*>(staging.mapped);
+    boost::container::small_vector<vk::BufferCopy, 8> copies;
+    u64 offset = staging.offset;
+    for (std::size_t i = 0; i < entries.size();) {
+        std::size_t run = 1;
+        while (i + run < entries.size() && entries[i + run].first == entries[i].first + run) {
+            ++run;
+        }
+        for (std::size_t j = 0; j < run; ++j) {
+            out[i + j] = entries[i + j].second;
+        }
+        copies.emplace_back(offset, entries[i].first * sizeof(vk::DeviceAddress),
+                            run * sizeof(vk::DeviceAddress));
+        unified_table_blocks.Add({entries[i].first, entries[i].first + run});
+        offset += run * sizeof(vk::DeviceAddress);
+        i += run;
+    }
+    staging.Flush();
+    runtime.CopyBuffer(staging.buffer, bda_pagetable_buffer.get(), copies);
+}
+
+void BufferCache::ProcessUnifiedUnmaps() {
+    if (!unmaps_pending.load(std::memory_order_acquire)) {
+        return;
+    }
+    std::vector<std::pair<VAddr, u64>> unmaps;
+    {
+        std::scoped_lock lk{pending_unmaps_mutex};
+        unmaps.swap(pending_unmaps);
+        unmaps_pending.store(false, std::memory_order_release);
+    }
+    for (const auto& [addr, size] : unmaps) {
+        const u64 first = addr >> block_shift, last = (addr + size - 1) >> block_shift;
+        unified_table_blocks.Subtract(first, last + 1);
+        runtime.FillBuffer(bda_pagetable_buffer.get(), first * sizeof(vk::DeviceAddress),
+                           (last - first + 1) * sizeof(vk::DeviceAddress), 0u);
+    }
+}
+
+std::pair<const Buffer*, u64> BufferCache::UnifiedCopy(VAddr addr, u64 size, bool is_written) {
+    static std::atomic<int> reported{0};
+    if (reported.fetch_add(1, std::memory_order_relaxed) < 8) {
+        std::printf("Guest memory: %#llx+%llu is not in one mapping of the pool; a %s copy is bound\n",
+                    static_cast<unsigned long long>(addr), static_cast<unsigned long long>(size),
+                    is_written ? "read-only (GPU writes lost)" : "read-only");
+    }
+    const auto staging =
+        staging_pool.Request(size, MemoryType::HostUncached, instance.StorageMinAlignment());
+    memory->CopySparseMemory(addr, staging.mapped, size);
+    staging.Flush();
+    return {staging.buffer, staging.offset};
 }
 
 void BufferCache::SubmitPendingArenaBinds(Vulkan::SubmitInfo& info) {

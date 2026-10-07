@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <bit>
 #include <numeric>
 
 #include "common/alignment.h"
@@ -162,6 +163,54 @@ Buffer::Buffer(const Vulkan::Instance& instance, u64 size_bytes_, vk::DeviceMemo
                vk::to_string(result));
     Vulkan::SetObjectName(device, Handle(), debug_name);
     is_coherent = true;
+}
+
+Buffer::Buffer(const Vulkan::Instance& instance, void* host_memory, u64 size_bytes_,
+               std::string_view debug_name)
+    : size_bytes{size_bytes_}, mem_type{MemoryType::HostCached},
+      buffer{instance.GetDevice(), instance.GetAllocator()} {
+    const auto device = instance.GetDevice();
+    const vk::ExternalMemoryBufferCreateInfo external{
+        .handleTypes = vk::ExternalMemoryHandleTypeFlagBits::eHostAllocationEXT,
+    };
+    const vk::BufferCreateInfo buffer_ci = {
+        .pNext = &external,
+        .size = size_bytes,
+        .usage = AllFlags | vk::BufferUsageFlagBits::eUniformTexelBuffer |
+                 vk::BufferUsageFlagBits::eStorageTexelBuffer,
+        .sharingMode = vk::SharingMode::eExclusive,
+    };
+    buffer.buffer = Vulkan::Check(device.createBuffer(buffer_ci));
+    const auto [props_result, props] = device.getMemoryHostPointerPropertiesEXT(
+        vk::ExternalMemoryHandleTypeFlagBits::eHostAllocationEXT, host_memory);
+    ASSERT_MSG(props_result == vk::Result::eSuccess && props.memoryTypeBits != 0,
+               "Host memory cannot be imported: {}", vk::to_string(props_result));
+    const auto requirements = device.getBufferMemoryRequirements(buffer.buffer);
+    const u32 types = props.memoryTypeBits & requirements.memoryTypeBits;
+    ASSERT_MSG(types != 0, "No memory type for imported host memory");
+    const vk::ImportMemoryHostPointerInfoEXT import_info{
+        .handleType = vk::ExternalMemoryHandleTypeFlagBits::eHostAllocationEXT,
+        .pHostPointer = host_memory,
+    };
+    const vk::MemoryAllocateFlagsInfo flags_info{
+        .pNext = &import_info,
+        .flags = vk::MemoryAllocateFlagBits::eDeviceAddress,
+    };
+    const auto [memory_result, memory] = device.allocateMemory({
+        .pNext = &flags_info,
+        .allocationSize = size_bytes,
+        .memoryTypeIndex = static_cast<u32>(std::countr_zero(types)),
+    });
+    ASSERT_MSG(memory_result == vk::Result::eSuccess, "Importing host memory failed: {}",
+               vk::to_string(memory_result));
+    const auto bind_result = device.bindBufferMemory(buffer.buffer, memory, 0);
+    ASSERT_MSG(bind_result == vk::Result::eSuccess, "Binding imported host memory failed: {}",
+               vk::to_string(bind_result));
+    buffer.bda_addr = device.getBufferAddress({.buffer = buffer.buffer});
+    ASSERT_MSG(buffer.bda_addr != 0, "Failed to get buffer device address");
+    mapped_data = std::span<u8>{static_cast<u8*>(host_memory), size_bytes};
+    Vulkan::SetObjectName(device, Handle(), debug_name);
+    is_coherent = true; // the memory lives for the process: not freed with the buffer
 }
 
 Buffer::Buffer(const Vulkan::Instance& instance, VAddr cpu_addr_, u64 size_bytes_,

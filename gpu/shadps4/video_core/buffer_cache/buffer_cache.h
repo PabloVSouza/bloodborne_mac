@@ -274,7 +274,20 @@ private:
     const Buffer* UploadCopies(const Buffer* arena, std::span<vk::BufferCopy> copies,
                                size_t total_size_bytes);
 
-    bool SynchronizeMemoryFromImage(const Buffer* arena, VAddr device_addr, u32 size);
+    /// `offset`: where device_addr is in `buffer` (an arena, or the unified memory pool).
+    bool SynchronizeMemoryFromImage(const Buffer* buffer, u64 offset, VAddr device_addr, u32 size);
+
+    /// bbport UnifiedGuestMemory: the pool buffer and offset of [addr, addr + size) when it is in one
+    /// mapping of pool memory (its page table entries are set on the way), else nothing.
+    std::optional<std::pair<const Buffer*, u64>> UnifiedRange(VAddr addr, u64 size);
+    /// Sets the BDA page table entries of the blocks of [addr, addr + size) not set yet.
+    void UnifiedPageTable(VAddr addr, u64 size);
+    /// Clears the entries of memory the game unmapped (queued by UnmapInPlace, any thread).
+    void ProcessUnifiedUnmaps();
+    /// A read-only copy of guest memory outside the pool (or across mappings).
+    std::pair<const Buffer*, u64> UnifiedCopy(VAddr addr, u64 size, bool is_written);
+    std::unique_ptr<Buffer> pool_buffer;
+    IntervalList<> unified_table_blocks; ///< blocks whose page table entries point into the pool
 
     const Vulkan::Instance& instance;
     Vulkan::Scheduler& scheduler;
