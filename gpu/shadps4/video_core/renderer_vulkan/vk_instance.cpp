@@ -271,6 +271,15 @@ bool Instance::CreateDevice() {
     // only safe (robustBufferAccess), not zero; without nullDescriptor the rasterizer binds zeroed
     // stand-ins (vk_null_resources.h).
     robust_buffer_access2 = robustness2_features.robustBufferAccess2;
+#ifdef __APPLE__
+    // bbport (experiment) BB_ROBUSTNESS=0: no robust buffer/image access. MoltenVK implements it with
+    // bounds checks compiled into every shader access; AMD hardware does it for free.
+    if (const char* env = std::getenv("BB_ROBUSTNESS"); env && env[0] == '0') {
+        robustness_off = true;
+        robust_buffer_access2 = false;
+        LOG_WARNING(Render_Vulkan, "BB_ROBUSTNESS=0: robust buffer and image access off");
+    }
+#endif
     null_descriptor = robustness2_features.nullDescriptor;
     if (!robust_buffer_access2) {
         LOG_WARNING(Render_Vulkan, "robustBufferAccess2 unavailable: robustBufferAccess is used");
@@ -452,7 +461,7 @@ bool Instance::CreateDevice() {
         },
         vk::PhysicalDeviceFeatures2{
             .features{
-                .robustBufferAccess = features.robustBufferAccess,
+                .robustBufferAccess = features.robustBufferAccess && !robustness_off,
                 .imageCubeArray = features.imageCubeArray,
                 .independentBlend = features.independentBlend,
                 .geometryShader = features.geometryShader,
@@ -505,7 +514,7 @@ bool Instance::CreateDevice() {
             .shaderOutputLayer = vk12_features.shaderOutputLayer,
         },
         vk::PhysicalDeviceVulkan13Features{
-            .robustImageAccess = vk13_features.robustImageAccess,
+            .robustImageAccess = vk13_features.robustImageAccess && !robustness_off,
             .shaderDemoteToHelperInvocation = vk13_features.shaderDemoteToHelperInvocation,
             .subgroupSizeControl = vk13_features.subgroupSizeControl,
             .synchronization2 = vk13_features.synchronization2,
@@ -530,7 +539,7 @@ bool Instance::CreateDevice() {
         },
         vk::PhysicalDeviceRobustness2FeaturesEXT{
             .robustBufferAccess2 = robust_buffer_access2,
-            .robustImageAccess2 = true,
+            .robustImageAccess2 = !robustness_off,
             .nullDescriptor = null_descriptor,
         },
         vk::PhysicalDeviceVertexInputDynamicStateFeaturesEXT{

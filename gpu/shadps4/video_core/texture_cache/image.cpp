@@ -21,6 +21,18 @@ using namespace Vulkan;
 
 Common::IncrementalIdProvider<u64> Image::global_image_uid{};
 
+bool CompressedTargets() {
+#ifdef __APPLE__
+    static const bool on = [] {
+        const char* env = std::getenv("BB_COMPRESSED_TARGETS");
+        return env && env[0] == '1';
+    }();
+    return on;
+#else
+    return false;
+#endif
+}
+
 static vk::ImageUsageFlags ImageUsageFlags(const Vulkan::Instance& instance,
                                            const ImageInfo& info) {
     vk::ImageUsageFlags usage = vk::ImageUsageFlagBits::eTransferSrc |
@@ -37,7 +49,12 @@ static vk::ImageUsageFlags ImageUsageFlags(const Vulkan::Instance& instance,
             // Always create images with storage flag to avoid needing re-creation in case of e.g
             // compute clears This sacrifices a bit of performance but is less work. ExtendedUsage
             // flag is also used.
-            usage |= vk::ImageUsageFlagBits::eStorage;
+            // bbport (macOS experiment) BB_COMPRESSED_TARGETS=1: without it, so Apple GPUs keep
+            // render targets losslessly compressed (storage usage turns that off). Storage
+            // bindings of such images get a stand-in (effects may break): to measure the gain.
+            if (!CompressedTargets()) {
+                usage |= vk::ImageUsageFlagBits::eStorage;
+            }
         }
     } else {
         // Similarly to above, we specify storage usage. This is typically not supported by

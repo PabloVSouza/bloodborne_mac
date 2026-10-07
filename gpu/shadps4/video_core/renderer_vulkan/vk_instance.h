@@ -575,6 +575,7 @@ private:
     u32 queue_family_index{0};
     bool custom_border_color{};
     bool robust_buffer_access2{};
+    bool robustness_off{}; ///< bbport BB_ROBUSTNESS=0 (macOS experiment)
     bool external_memory_host{};
     bool null_descriptor{};
     bool fragment_shader_barycentric{};

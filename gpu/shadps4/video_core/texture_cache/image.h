@@ -25,6 +25,9 @@ VK_DEFINE_HANDLE(VmaAllocator)
 
 namespace VideoCore {
 
+/// bbport (macOS experiment) BB_COMPRESSED_TARGETS=1: color targets without storage usage.
+bool CompressedTargets();
+
 enum ImageFlagBits : u32 {
     Empty = 0,
     MaybeCpuDirty = 1 << 0, ///< The page this image is in was touched before the image address
