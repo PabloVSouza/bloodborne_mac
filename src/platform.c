@@ -83,6 +83,7 @@ void bb_sleep_until(uint64_t deadline_ns) {
 }
 void bb_set_thread_name(const char *name) { pthread_setname_np(pthread_self(),name); }
 int bb_random(void *buffer, size_t size) { return getrandom(buffer,size,0)<0 ? -1 : 0; }
+void bb_latency_critical(void) {}
 uintptr_t bb_thread_stack_top(void) {
     pthread_attr_t attr; void *base=NULL; size_t size=0;
     if (!pthread_getattr_np(pthread_self(),&attr)) { pthread_attr_getstack(&attr,&base,&size); pthread_attr_destroy(&attr); }
@@ -133,6 +134,8 @@ uint32_t bb_guest_tls_displacement(void) { return 0; }
 
 #else /* macOS */
 #include <os/lock.h>
+#include <dlfcn.h>
+#include <objc/objc.h>
 #include <mach/mach.h>
 #include <mach/mach_vm.h>
 
@@ -272,6 +275,29 @@ void bb_sleep_until(uint64_t deadline_ns) {
 }
 void bb_set_thread_name(const char *name) { pthread_setname_np(name); }
 int bb_random(void *buffer, size_t size) { arc4random_buf(buffer,size); return 0; }
+/* [[NSProcessInfo processInfo] beginActivityWithOptions:reason:] through the Objective-C runtime:
+ * NSActivityUserInitiated | NSActivityLatencyCritical turns off timer coalescing and App Nap,
+ * which delay the game's short sleeps and the GPU threads' wakeups. The activity is kept for the
+ * whole process. Resolved at run time: programs without Foundation (the tests) skip it. */
+void bb_latency_critical(void) {
+    typedef void *(*GetClass)(const char *);
+    typedef SEL (*RegisterName)(const char *);
+    typedef void *(*Send0)(void *, SEL);
+    typedef void *(*SendString)(void *, SEL, const char *);
+    typedef void *(*SendActivity)(void *, SEL, unsigned long long, void *);
+    GetClass get_class=(GetClass)dlsym(RTLD_DEFAULT,"objc_getClass");
+    RegisterName sel=(RegisterName)dlsym(RTLD_DEFAULT,"sel_registerName");
+    void *send=dlsym(RTLD_DEFAULT,"objc_msgSend");
+    if (!get_class || !sel || !send) return;
+    void *process_class=get_class("NSProcessInfo"), *string_class=get_class("NSString");
+    if (!process_class || !string_class) return;
+    void *info=((Send0)send)(process_class,sel("processInfo"));
+    void *reason=((SendString)send)(string_class,sel("stringWithUTF8String:"),"Bloodborne");
+    const unsigned long long user_initiated=0x00FFFFFFULL, latency_critical=0xFF00000000ULL;
+    void *activity=((SendActivity)send)(info,sel("beginActivityWithOptions:reason:"),
+                                        user_initiated|latency_critical,reason);
+    if (activity) ((Send0)send)(activity,sel("retain"));
+}
 uintptr_t bb_thread_stack_top(void) { return (uintptr_t)pthread_get_stackaddr_np(pthread_self()); }
 void bb_thread_cpu_time(struct timeval *user, struct timeval *system) {
     thread_basic_info_data_t info;

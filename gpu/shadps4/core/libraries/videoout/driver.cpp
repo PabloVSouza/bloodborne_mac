@@ -24,7 +24,7 @@
 #include "core/libraries/videoout/driver.h"
 #include "core/libraries/kernel/equeue.h"
 
-extern "C" void runtime_sleep_stats(uint64_t* calls, uint64_t* ns);
+extern "C" void runtime_sleep_stats(uint64_t* calls, uint64_t* ns, uint64_t* requested_ns);
 extern "C" void runtime_wait_report(double frames);
 #include "video_core/page_manager.h"
 #include "core/libraries/videoout/videoout_error.h"
@@ -643,11 +643,12 @@ void VideoOutDriver::Flip(const Request& req) {
                             early / double(frames));
             }
             {
-                uint64_t sleeps = 0, sleep_ns = 0;
-                runtime_sleep_stats(&sleeps, &sleep_ns);
+                uint64_t sleeps = 0, sleep_ns = 0, requested_ns = 0;
+                runtime_sleep_stats(&sleeps, &sleep_ns, &requested_ns);
                 if (sleeps != 0 && frames != 0) {
-                    std::printf("Guest sleeps per frame: %.1f, %.2f ms\n", sleeps / double(frames),
-                                sleep_ns / (frames * 1e6));
+                    std::printf("Guest sleeps per frame: %.1f, %.2f ms (%.2f ms requested)\n",
+                                sleeps / double(frames), sleep_ns / (frames * 1e6),
+                                requested_ns / (frames * 1e6));
                 }
             }
             if (const u64 copies = BbStats::shadow_copies.exchange(0)) {

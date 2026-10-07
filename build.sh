@@ -85,6 +85,7 @@ if (( macos )); then
     gpu=(-Lout/gpu -lbbgpu -Wl,-rpath,@executable_path/gpu -Wl,-rpath,"$PWD/out/gpu")
     probe_flags=()
     warnings=(-Wno-unknown-warning-option -Wno-unused-but-set-global)
+    gpu+=(-framework Foundation) # platform.c: NSProcessInfo (bb_latency_critical)
 fi
 runtime=(src/runtime*.c src/platform.c)
 # Third-party decoders: compiled once, without this project's -Werror policy.

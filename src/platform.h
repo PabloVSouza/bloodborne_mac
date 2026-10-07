@@ -116,6 +116,9 @@ int bb_cond_timedwait_monotonic(pthread_cond_t *cond, pthread_mutex_t *mutex, co
 void bb_sleep_until(uint64_t deadline_ns);
 /* Names the calling thread (shown by debuggers and the samplers). */
 void bb_set_thread_name(const char *name);
+/* macOS: tells the system the process is latency-critical and user-initiated (no timer
+ * coalescing or App Nap); nothing elsewhere. */
+void bb_latency_critical(void);
 /* Fills the buffer with random bytes; 0 on success. */
 int bb_random(void *buffer, size_t size);
 /* Highest address of the calling thread's stack. */

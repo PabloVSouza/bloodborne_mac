@@ -104,9 +104,10 @@ uint64_t runtime_process_time_us(void) { return process_time(); }
 uint64_t runtime_process_time_counter(void) { return process_time_counter(); }
 uint64_t runtime_tsc_frequency(void) { return tsc_frequency(); }
 /* bbport (frame stats): how often and how long the game sleeps (it polls GPU labels that way). */
-static _Atomic uint64_t sleep_calls, sleep_total_ns;
-void runtime_sleep_stats(uint64_t *calls, uint64_t *ns) {
+static _Atomic uint64_t sleep_calls, sleep_total_ns, sleep_requested_ns;
+void runtime_sleep_stats(uint64_t *calls, uint64_t *ns, uint64_t *requested_ns) {
     *calls=atomic_exchange(&sleep_calls,0); *ns=atomic_exchange(&sleep_total_ns,0);
+    *requested_ns=atomic_exchange(&sleep_requested_ns,0);
 }
 static int sleep_ns(uint64_t ns) {
     struct timespec t={.tv_sec=(time_t)(ns/1000000000),.tv_nsec=(long)(ns%1000000000)}, a, b;
@@ -115,6 +116,7 @@ static int sleep_ns(uint64_t ns) {
     while (nanosleep(&t,&t)) if (errno!=EINTR) { result=errno; break; }
     clock_gettime(CLOCK_MONOTONIC,&b);
     atomic_fetch_add(&sleep_calls,1);
+    atomic_fetch_add(&sleep_requested_ns,ns);
     atomic_fetch_add(&sleep_total_ns,(uint64_t)((b.tv_sec-a.tv_sec)*1000000000+(b.tv_nsec-a.tv_nsec)));
     runtime_wait_note(3,(uint64_t)((b.tv_sec-a.tv_sec)*1000000000+(b.tv_nsec-a.tv_nsec)));
     return result;
