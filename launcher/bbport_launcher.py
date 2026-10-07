@@ -11,6 +11,7 @@ Russian and English (bbport_i18n: the Russian text is the key).
 import json
 import os
 import signal
+import shutil
 import subprocess
 import sys
 from pathlib import Path
@@ -565,10 +566,13 @@ class LauncherWindow(Adw.ApplicationWindow):
                         "и Steam Deck, может вылетать, на NVIDIA работает неправильно"),
             active=self.settings.get("new_memory_model", False))
         perf.add(self.new_memory_row)
+        # macOS: the new model needs dma-buf (Linux), and MangoHud is a Linux Vulkan layer.
+        self.new_memory_row.set_visible(sys.platform != "darwin")
         page.add(perf)
 
         dev = Adw.PreferencesGroup(title=tr("Для разработчика"))
         self.mangohud_row = Adw.SwitchRow(title="MangoHud", active=self.settings["mangohud"])
+        self.mangohud_row.set_visible(sys.platform != "darwin")
         dev.add(self.mangohud_row)
         self.save_log_row = Adw.SwitchRow(
             title=tr("Сохранять журнал и статистику в файл"),
@@ -967,8 +971,11 @@ class LauncherWindow(Adw.ApplicationWindow):
         launcher.set_environ([f"{k}={v}" for k, v in self.environment().items()])
         launcher.set_cwd(str(PORT_DIR))
         try:
-            # setsid: the game and its helpers form one process group, stopped together.
-            self.process = launcher.spawnv(["setsid", "bash", str(PORT_DIR / "run.sh")])
+            # setsid: the game and its helpers form one process group, stopped together. macOS has
+            # no setsid command: Python starts the session there.
+            new_session = (["setsid"] if shutil.which("setsid") else
+                           [sys.executable, "-c", "import os, sys; os.setsid(); os.execvp(sys.argv[1], sys.argv[1:])"])
+            self.process = launcher.spawnv(new_session + ["bash", str(PORT_DIR / "run.sh")])
         except GLib.Error as error:
             self.toasts.add_toast(Adw.Toast(title=tr("Не удалось запустить: {}").format(error.message)))
             return
