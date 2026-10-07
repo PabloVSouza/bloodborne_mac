@@ -31,6 +31,19 @@
 
 namespace Vulkan {
 
+namespace {
+// bbport: draws with a geometry shader stage are skipped where the GPU has none (Metal/MoltenVK).
+// Logged once and then every 10000: a warning per draw (hundreds a frame) went through the log
+// pipe into the launcher and cost frames by itself.
+void NoteSkippedGeometryDraw() {
+    static std::atomic<u64> skipped{0};
+    const u64 n = skipped.fetch_add(1, std::memory_order_relaxed) + 1;
+    if (n == 1 || n % 10000 == 0) {
+        LOG_WARNING(Render_Vulkan, "Geometry shader stage unsupported: draw skipped ({} so far)", n);
+    }
+}
+} // namespace
+
 using Shader::HwStage;
 using Shader::Output;
 using Shader::SwStage;
@@ -702,7 +715,7 @@ bool PipelineCache::RefreshGraphicsStages(PipelineSelection& sel) {
     switch (regs.stage_enable.raw) {
     case AmdGpu::ShaderStageEnable::VgtStages::EsGs:
         if (!instance.IsGeometryStageSupported()) {
-            LOG_WARNING(Render_Vulkan, "Geometry shader stage unsupported, skipping");
+            NoteSkippedGeometryDraw();
             return false;
         }
         if (regs.vgt_gs_mode.onchip || regs.vgt_strmout_config.raw) {
@@ -735,7 +748,7 @@ bool PipelineCache::RefreshGraphicsStages(PipelineSelection& sel) {
             return false;
         }
         if (!instance.IsGeometryStageSupported()) {
-            LOG_WARNING(Render_Vulkan, "Geometry shader stage unsupported, skipping");
+            NoteSkippedGeometryDraw();
             return false;
         }
         if (regs.vgt_gs_mode.onchip || regs.vgt_strmout_config.raw) {
