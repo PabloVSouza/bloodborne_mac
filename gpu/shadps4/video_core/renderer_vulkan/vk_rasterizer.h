@@ -38,6 +38,7 @@ namespace Vulkan {
 class GraphicsPipeline;
 class Runtime;
 
+class NullResources; // bbport: vk_null_resources.h
 class Rasterizer {
 public:
     explicit Rasterizer(const Instance& instance, Scheduler& scheduler, Runtime& runtime,
@@ -405,6 +406,11 @@ private:
     u64 motion_geometry{};    ///< vertex-stream identity of the current direct draw
     bool gbuffer_draw = false;
     std::unique_ptr<TemporalUpscaler> upscaler; // bbport: FSR (docs/upscaler.md)
+    /// bbport: stand-ins for null descriptors when the driver has none (MoltenVK), else null.
+    std::unique_ptr<NullResources> null_resources;
+    /// bbport: per image binding of BindTextures, the stand-in view of an empty binding.
+    std::array<vk::ImageView, Shader::NUM_IMAGES> null_image_views{};
+    vk::ImageView NullImageView(const Shader::ImageResource& desc, const AmdGpu::Image& sharp) const;
     std::array<float, 2> draw_jitter{};         ///< viewport offset of the current draw, pixels
     std::array<float, 2> target_scale{1.0f, 1.0f}; ///< pass drawn into the upscaler's output-size images
     const bool host_markers_enabled;

@@ -8,6 +8,7 @@
 #include <stdatomic.h>
 #include <sched.h>
 #include <pthread.h>
+#include <unistd.h>
 
 typedef struct {
     union { GuestCallback plain; void (ABI *with_arg)(void *); } callback;
@@ -196,7 +197,15 @@ static ABI __attribute__((noreturn)) void guest_libc_exit(int status) {
     printf("Runtime: guest requested exit(%d)\n", status);
     runtime_finalize(NULL);
     runtime_report();
+#ifdef __APPLE__
+    /* The GPU threads are still running: host static destructors would pull their mutexes away
+     * (libc++ then aborts on a destroyed std::mutex), as glibc tolerates. Linux keeps exit for the
+     * PGO profile written at exit. */
+    fflush(NULL);
+    _exit(status);
+#else
     exit(status);
+#endif
 }
 uintptr_t runtime_resolve(const char *name, int is_data) {
     if (!(capabilities & 1)) return 0;

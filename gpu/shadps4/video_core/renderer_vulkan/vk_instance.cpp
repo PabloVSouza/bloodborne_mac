@@ -265,12 +265,19 @@ bool Instance::CreateDevice() {
                "Required Vulkan extension unavailable: {}", VK_EXT_ROBUSTNESS_2_EXTENSION_NAME);
 
     const auto robustness2_features = feature_chain.get<vk::PhysicalDeviceRobustness2FeaturesEXT>();
-    ASSERT_MSG(robustness2_features.robustBufferAccess2,
-               "Required Vulkan feature unavailable: robustBufferAccess2");
     ASSERT_MSG(robustness2_features.robustImageAccess2,
                "Required Vulkan feature unavailable: robustImageAccess2");
-    ASSERT_MSG(robustness2_features.nullDescriptor,
-               "Required Vulkan feature unavailable: nullDescriptor");
+    // bbport: MoltenVK has neither. Without robustBufferAccess2, out-of-bounds buffer reads are
+    // only safe (robustBufferAccess), not zero; without nullDescriptor the rasterizer binds zeroed
+    // stand-ins (vk_null_resources.h).
+    robust_buffer_access2 = robustness2_features.robustBufferAccess2;
+    null_descriptor = robustness2_features.nullDescriptor;
+    if (!robust_buffer_access2) {
+        LOG_WARNING(Render_Vulkan, "robustBufferAccess2 unavailable: robustBufferAccess is used");
+    }
+    if (!null_descriptor) {
+        LOG_WARNING(Render_Vulkan, "nullDescriptor unavailable: empty bindings use stand-ins");
+    }
 
 #ifdef __APPLE__
     // bbport: a portability driver (MoltenVK) must have its subset extension enabled.
@@ -519,9 +526,9 @@ bool Instance::CreateDevice() {
             .depthClipEnable = true,
         },
         vk::PhysicalDeviceRobustness2FeaturesEXT{
-            .robustBufferAccess2 = true,
+            .robustBufferAccess2 = robust_buffer_access2,
             .robustImageAccess2 = true,
-            .nullDescriptor = true,
+            .nullDescriptor = null_descriptor,
         },
         vk::PhysicalDeviceVertexInputDynamicStateFeaturesEXT{
             .vertexInputDynamicState = true,

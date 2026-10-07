@@ -98,6 +98,11 @@ public:
     u32 GetReadbackQueueFamilyIndex() const {
         return readback_family_index;
     }
+    /// bbport: empty bindings may use null descriptors (else NullResources stand-ins).
+    bool IsNullDescriptorSupported() const {
+        return null_descriptor;
+    }
+
     /// bbport: memory can be exported as a dma-buf (guest memory, BbGuestMemory).
     bool IsGuestMemoryExportSupported() const {
         return guest_memory_export;
@@ -560,6 +565,8 @@ private:
     TracyVkCtx profiler_context{};
     u32 queue_family_index{0};
     bool custom_border_color{};
+    bool robust_buffer_access2{};
+    bool null_descriptor{};
     bool fragment_shader_barycentric{};
     bool amd_shader_explicit_vertex_parameter{};
     bool depth_clip_control{};
