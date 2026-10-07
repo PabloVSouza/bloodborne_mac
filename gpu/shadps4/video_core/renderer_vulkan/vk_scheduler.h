@@ -1039,6 +1039,13 @@ private:
     std::jthread priority_pending_ops_thread;
     RenderState render_state;
     bool is_rendering = false;
+    /// bbport BB_PASS_BREAKS=1: who ended the last render pass, and its state. A pass started again
+    /// with the same state was split there (tile-based GPUs store and reload its attachments).
+    void* last_end_caller = nullptr;
+    std::array<void*, 2> last_end_callers{};
+    RenderState last_ended_state;
+    bool last_end_valid = false;
+    static void NotePassBreak(void* caller, std::array<void*, 2> above);
     // bbport: threaded recording. Commands go into chunks of the current segment; segments are
     // recorded in parallel, each into its own command buffer, and a submission runs their
     // command buffers in order. Guest memory copies and fence signals go into ordered chunks,

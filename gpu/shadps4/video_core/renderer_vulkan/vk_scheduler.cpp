@@ -176,10 +176,74 @@ Scheduler::~Scheduler() {
 #endif
 }
 
+namespace {
+bool PassBreakTrace() {
+    static const bool enabled = [] {
+        const char* env = std::getenv("BB_PASS_BREAKS");
+        return env && env[0] == '1';
+    }();
+    return enabled;
+}
+} // namespace
+
+// bbport BB_PASS_BREAKS=1: render passes split and started again with the same attachments, by the
+// code that ended them, every 5 s. Each costs a tile-based GPU a store and a reload of them all.
+void Scheduler::NotePassBreak(void* caller, std::array<void*, 2> above) {
+    static std::mutex mutex;
+    static std::unordered_map<void*, u64> callers;
+    static std::unordered_map<void*, std::unordered_map<void*, u64>> above_callers;
+    ++above_callers[caller][above[0]];
+    static auto last_report = std::chrono::steady_clock::now();
+    static u64 total = 0;
+    std::scoped_lock lk{mutex};
+    ++callers[caller];
+    ++total;
+    const auto now = std::chrono::steady_clock::now();
+    const double seconds = std::chrono::duration<double>(now - last_report).count();
+    if (seconds < 5.0) {
+        return;
+    }
+    std::vector<std::pair<u64, void*>> top;
+    for (const auto& [address, count] : callers) {
+        top.emplace_back(count, address);
+    }
+    std::ranges::sort(top, std::greater{});
+    std::printf("Pass breaks: %.0f/s\n", total / seconds);
+    for (size_t i = 0; i < std::min<size_t>(top.size(), 12); ++i) {
+        Dl_info info{};
+        dladdr(top[i].second, &info);
+        std::printf("  %7.1f/s %s+0x%lx (%s)\n", top[i].first / seconds,
+                    info.dli_fname ? std::strrchr(info.dli_fname, '/') + 1 : "?",
+                    static_cast<unsigned long>(reinterpret_cast<uintptr_t>(top[i].second) -
+                                               reinterpret_cast<uintptr_t>(info.dli_fbase)),
+                    info.dli_sname ? info.dli_sname : "?");
+        // Its most frequent callers.
+        std::vector<std::pair<u64, void*>> ups;
+        for (const auto& [address, count] : above_callers[top[i].second]) {
+            ups.emplace_back(count, address);
+        }
+        std::ranges::sort(ups, std::greater{});
+        for (size_t j = 0; j < std::min<size_t>(ups.size(), 3); ++j) {
+            Dl_info up{};
+            dladdr(ups[j].second, &up);
+            std::printf("           <- %5.1f/s %s\n", ups[j].first / seconds,
+                        up.dli_sname ? up.dli_sname : "?");
+        }
+    }
+    callers.clear();
+    above_callers.clear();
+    total = 0;
+    last_report = now;
+}
+
 void Scheduler::BeginRendering(const RenderState& new_state) {
     if (is_rendering && render_state == new_state) {
         return;
     }
+    if (PassBreakTrace() && !is_rendering && last_end_valid && new_state == last_ended_state) {
+        NotePassBreak(last_end_caller, last_end_callers);
+    }
+    last_end_valid = false;
     // bbport: a cut of the command stream (MaybeSplit) closed this render pass; it continues
     // in the next command buffer without clearing its attachments again.
     const bool resume = resume_rendering && !is_rendering && render_state == new_state;
@@ -253,9 +317,18 @@ void Scheduler::BeginRendering(const RenderState& new_state) {
     });
 }
 
-void Scheduler::EndRendering() {
+__attribute__((noinline)) void Scheduler::EndRendering() {
     if (!is_rendering) {
         return;
+    }
+    if (PassBreakTrace()) {
+        // The caller and the two above it (helpers like CopyBuffer have many users).
+        void* frames[4]{};
+        backtrace(frames, 4);
+        last_end_caller = __builtin_return_address(0);
+        last_end_callers = {frames[2], frames[3]};
+        last_ended_state = render_state;
+        last_end_valid = true;
     }
     is_rendering = false;
     Record([](vk::CommandBuffer cmdbuf) { cmdbuf.endRendering(); });
