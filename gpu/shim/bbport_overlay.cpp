@@ -391,7 +391,7 @@ void Menu() {
         ImGui::EndCombo();
     }
     for (int e = 0; e < BbSettings::EffectCount; ++e) {
-        Checkbox(BbSettings::Effects[e].label, s.effects[e]);
+        Checkbox(L(BbSettings::Effects[e].label, BbSettings::Effects[e].label_en), s.effects[e]);
     }
     Hint(L("Эффекты включаются и выключаются патчами игры при запуске (patches/Bloodborne.xml). "
          "Размытие в движении и тени от динамических источников заметно нагружают GPU.", "Effects are switched on and off by game patches at start (patches/Bloodborne.xml). Motion blur and shadows from dynamic lights are notably heavy on the GPU."));
