@@ -2917,12 +2917,6 @@ void Rasterizer::BindTextures(const Shader::Info& stage, const PreparedStage* pr
 
             vk::ImageView view = *image_view.image_view;
             vk::ImageLayout layout = image.backing->state.layout;
-            // bbport BB_COMPRESSED_TARGETS=1 (experiment): an image made without storage usage
-            // cannot be written by a shader; the binding gets a stand-in.
-            if (is_storage && !(image.usage_flags & vk::ImageUsageFlagBits::eStorage) &&
-                null_resources) {
-                view = null_resources->ImageView(AmdGpu::ImageType::Color2D, false);
-            }
             if (upscaler->Enabled()) {
                 // bbport: the display pass reads the upscaled frame (scaled presets).
                 upscaler->RedirectSampled(image_id, image_view.info, view, layout);
