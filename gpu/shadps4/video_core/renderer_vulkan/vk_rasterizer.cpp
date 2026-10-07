@@ -3506,6 +3506,20 @@ RenderState Rasterizer::BeginRenderingFull(const GraphicsPipeline* pipeline) {
             db_desc.first ? &texture_cache.GetImage(db_desc.first).info : nullptr;
         FrameCapture::BeginPass(colors.data(), state.num_color_attachments, depth);
     }
+#ifdef __APPLE__
+    // bbport: a pass without attachments keeps the maximum framebuffer size (16384x16384). A
+    // tile-based GPU (Apple, through MoltenVK) bins the whole area every pass, empty or not: it is
+    // clamped to the screen scissor, outside which nothing is drawn anyway.
+    if (state.width == instance.GetMaxFramebufferWidth() &&
+        state.height == instance.GetMaxFramebufferHeight()) {
+        const u32 width = AmdGpu::Scissor::Clamp(regs.screen_scissor.bottom_right_x);
+        const u32 height = AmdGpu::Scissor::Clamp(regs.screen_scissor.bottom_right_y);
+        if (width != 0 && height != 0) {
+            state.width = std::min<u32>(state.width, width);
+            state.height = std::min<u32>(state.height, height);
+        }
+    }
+#endif
     // bbport: object motion vector attachment of G-buffer pipelines.
     if (key.motion_vectors) {
         object_motion->Attach(state, state.width, state.height);

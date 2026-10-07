@@ -16,6 +16,13 @@
 #include "video_core/renderer_vulkan/vk_instance.h"
 #include "video_core/renderer_vulkan/vk_scheduler.h"
 
+// The settings menu key: Insert, and F1 on macOS (Mac keyboards have no Insert key).
+#ifdef __APPLE__
+constexpr SDL_Keycode MenuKey = SDLK_F1;
+#else
+constexpr SDL_Keycode MenuKey = SDLK_INSERT;
+#endif
+
 // DejaVu Sans (Cyrillic), embedded (third_party/fonts, Bitstream Vera license).
 #ifdef __APPLE__
 // Mach-O: read-only data section, C symbols with a leading underscore.
@@ -513,7 +520,11 @@ void Init(const Vulkan::Instance& instance, vk::Format format, u32 image_count) 
         return;
     }
     initialized = true;
+#ifdef __APPLE__
+    std::printf("Overlay: menu ready (F1 or L3+R3)\n");
+#else
     std::printf("Overlay: menu ready (Insert or L3+R3)\n");
+#endif
 }
 
 void UpdateTextInput(SDL_Window* window) {
@@ -543,8 +554,9 @@ bool HandleEvent(const SDL_Event& event) {
     case SDL_EVENT_KEY_UP: {
         const bool down = event.type == SDL_EVENT_KEY_DOWN;
         if (down && !event.key.repeat &&
-            (event.key.key == SDLK_INSERT || (is_open && event.key.key == SDLK_ESCAPE))) {
-            SetOpen(event.key.key == SDLK_INSERT ? !is_open : false);
+            (event.key.key == MenuKey || event.key.key == SDLK_INSERT ||
+             (is_open && event.key.key == SDLK_ESCAPE))) {
+            SetOpen(event.key.key == MenuKey || event.key.key == SDLK_INSERT ? !is_open : false);
             return true;
         }
         if (!is_open) {
