@@ -42,7 +42,7 @@ static int entered_game;
 static int gpu_enabled;
 int vulkan_smoke(void);
 
-static void fail(const char *message) { fprintf(stderr, "ERROR: %s\n", message); exit(1); }
+static __attribute__((noreturn)) void fail(const char *message) { fprintf(stderr, "ERROR: %s\n", message); exit(1); }
 static uint64_t read64(FILE *f) {
     unsigned char b[8];
     if (fread(b, 1, 8, f) != 8) fail("truncated boot file");
@@ -274,6 +274,54 @@ void runtime_restart(void) {
 #endif
 }
 
+/* The game's start, saved by main: run_game runs it on the main thread (Linux) or on a thread of
+ * its own while the main thread pumps the window's events (macOS: Cocoa needs the main thread). */
+static struct {
+    int native_libc;
+    uint64_t ns, nb, procparam, entry, main_tls[4];
+    Segment *segments;
+} game;
+static __attribute__((noreturn)) void run_game(void) {
+    if (game.native_libc) {
+        for (uint64_t m=0;m<module_count;++m) {
+            int init_executable=0;
+            for (uint64_t i=0;i<game.ns;++i)
+                if ((game.segments[i].flags&1) && modules[m].init>=game.segments[i].address && modules[m].init-game.segments[i].address<game.segments[i].size) init_executable=1;
+            if (!init_executable) fail("module init is not executable");
+            if (modules[m].tls_module)
+                runtime_set_module_tls(modules[m].tls_module,image+modules[m].tls_address,modules[m].tls_filesz,modules[m].tls_memsz);
+        }
+        runtime_set_main_tls(image+game.main_tls[0],game.main_tls[1],game.main_tls[2],game.main_tls[3]);
+        runtime_thread_attach_main();
+        runtime_set_procparam(image+game.procparam);
+        /* Dependencies start in link order (libc first), as the PS4 dynamic linker does. */
+        for (uint64_t m=0;m<module_count;++m) {
+            printf("Starting linked module %" PRIu64 " at image offset 0x%" PRIx64 "; native bindings=%" PRIu64 "\n",m,modules[m].init,game.nb);
+            typedef int (ABI *ModuleInit)(uint64_t,void *,void *);
+            int result=((ModuleInit)(image+modules[m].init))(0,NULL,NULL);
+            printf("Module %" PRIu64 " initializer returned %d\n",m,result);
+            if (result) fail("module initializer failed");
+        }
+    }
+    printf("Entering original x86-64 code at guest offset 0x%" PRIx64 "\n", game.entry);
+    entered_game=1;
+    struct { uint64_t argc; const char *argv[2]; } params = {1, {"/app0/eboot.bin", NULL}};
+#ifdef _WIN32
+    typedef void (ABI *Entry)(void *, void (ABI *)(void));
+    ((Entry)(image + game.entry))(&params, guest_exit);
+#else
+    /* The guest main thread runs on a stack below 1 TiB like PS4 stacks. */
+    enum { MAIN_STACK=8*1024*1024 };
+    unsigned char *stack=runtime_low_map(MAIN_STACK,PROT_READ|PROT_WRITE);
+    if (!stack) fail("cannot allocate guest main stack");
+    enter_on_stack(image+game.entry,&params,(void *)guest_exit,stack+MAIN_STACK-64);
+#endif
+    fail("entry unexpectedly returned");
+}
+#ifdef __APPLE__
+static void *game_thread(void *unused) { (void)unused; run_game(); }
+#endif
+
 int main(int argc, char **argv) {
     setvbuf(stdout, NULL, _IONBF, 0);
 #if !defined(_WIN32) && !defined(__APPLE__)
@@ -494,39 +542,19 @@ int main(int argc, char **argv) {
     }
     if (!executable_entry) fail("entry is not executable");
     printf("Mapped %" PRIu64 " bytes, %" PRIu64 " segments; applied %" PRIu64 " relocations\n", size, ns, nr);
-    if (native_libc) {
-        for (uint64_t m=0;m<module_count;++m) {
-            int init_executable=0;
-            for (uint64_t i=0;i<ns;++i)
-                if ((segments[i].flags&1) && modules[m].init>=segments[i].address && modules[m].init-segments[i].address<segments[i].size) init_executable=1;
-            if (!init_executable) fail("module init is not executable");
-            if (modules[m].tls_module)
-                runtime_set_module_tls(modules[m].tls_module,image+modules[m].tls_address,modules[m].tls_filesz,modules[m].tls_memsz);
-        }
-        runtime_set_main_tls(image+main_tls[0],main_tls[1],main_tls[2],main_tls[3]);
-        runtime_thread_attach_main();
-        runtime_set_procparam(image+procparam);
-        /* Dependencies start in link order (libc first), as the PS4 dynamic linker does. */
-        for (uint64_t m=0;m<module_count;++m) {
-            printf("Starting linked module %" PRIu64 " at image offset 0x%" PRIx64 "; native bindings=%" PRIu64 "\n",m,modules[m].init,nb);
-            typedef int (ABI *ModuleInit)(uint64_t,void *,void *);
-            int result=((ModuleInit)(image+modules[m].init))(0,NULL,NULL);
-            printf("Module %" PRIu64 " initializer returned %d\n",m,result);
-            if (result) fail("module initializer failed");
-        }
+    game.native_libc=native_libc; game.ns=ns; game.nb=nb; game.procparam=procparam; game.entry=entry;
+    memcpy(game.main_tls,main_tls,sizeof(game.main_tls)); game.segments=segments;
+#ifdef __APPLE__
+    if (gpu_enabled) {
+        /* Module initializers ran on the main thread's 8 MiB stack; secondary threads get 512 KiB. */
+        pthread_attr_t attributes;
+        pthread_t thread;
+        pthread_attr_init(&attributes);
+        pthread_attr_setstacksize(&attributes,8*1024*1024);
+        if (pthread_create(&thread,&attributes,game_thread,NULL)) fail("cannot start the game thread");
+        pthread_attr_destroy(&attributes);
+        bbgpu_window_loop();
     }
-    printf("Entering original x86-64 code at guest offset 0x%" PRIx64 "\n", entry);
-    entered_game=1;
-    struct { uint64_t argc; const char *argv[2]; } params = {1, {"/app0/eboot.bin", NULL}};
-#ifdef _WIN32
-    typedef void (ABI *Entry)(void *, void (ABI *)(void));
-    ((Entry)(image + entry))(&params, guest_exit);
-#else
-    /* The guest main thread runs on a stack below 1 TiB like PS4 stacks. */
-    enum { MAIN_STACK=8*1024*1024 };
-    unsigned char *stack=runtime_low_map(MAIN_STACK,PROT_READ|PROT_WRITE);
-    if (!stack) fail("cannot allocate guest main stack");
-    enter_on_stack(image+entry,&params,(void *)guest_exit,stack+MAIN_STACK-64);
 #endif
-    fail("entry unexpectedly returned");
+    run_game();
 }

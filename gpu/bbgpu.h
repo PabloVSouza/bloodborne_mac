@@ -18,6 +18,10 @@ typedef struct {
 void bbgpu_register_kernel(void);
 /* Creates window, Vulkan device, presenter and GPU command processor. */
 int bbgpu_init(const BbGpuConfig *config);
+/* Pumps the window's events until it is closed, then ends the process. Linux: bbgpu_init runs it
+ * on a thread of its own. macOS: Cocoa windows belong to the main thread, so bbgpu_init (called
+ * there) only creates the window and the loader's main thread calls this. */
+void bbgpu_window_loop(void);
 /* Function for an imported NID ("NID#lib#mod"), or 0 when the GPU library does not provide it. */
 uintptr_t bbgpu_resolve(const char *scoped_nid);
 /* Called first by the loader's SIGSEGV handler: 1 when a GPU page-tracking fault was handled. */
