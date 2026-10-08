@@ -4,6 +4,7 @@
 #include <bit>
 #include <numeric>
 
+#include "bbport_metal_residency.h"
 #include "common/alignment.h"
 #include "common/assert.h"
 #include "video_core/buffer_cache/buffer.h"
@@ -210,6 +211,12 @@ Buffer::Buffer(const Vulkan::Instance& instance, void* host_memory, u64 size_byt
     ASSERT_MSG(buffer.bda_addr != 0, "Failed to get buffer device address");
     mapped_data = std::span<u8>{static_cast<u8*>(host_memory), size_bytes};
     Vulkan::SetObjectName(device, Handle(), debug_name);
+    // bbport: wired once instead of for every command buffer that uses it (BB_RESIDENCY_SET).
+    if (BbMetalResidency::AddMemory(memory)) {
+        std::printf("GPU: %s (%llu MiB) kept resident (Metal residency set)\n",
+                    std::string{debug_name}.c_str(),
+                    static_cast<unsigned long long>(size_bytes >> 20));
+    }
     is_coherent = true; // the memory lives for the process: not freed with the buffer
 }
 

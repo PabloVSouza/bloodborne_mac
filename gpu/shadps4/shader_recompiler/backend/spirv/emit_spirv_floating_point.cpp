@@ -1,13 +1,30 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <cstdlib>
 #include "shader_recompiler/backend/spirv/emit_spirv_instructions.h"
 #include "shader_recompiler/backend/spirv/spirv_emit_context.h"
 
 namespace Shader::Backend::SPIRV {
 
+// bbport: NoContraction keeps the GCN rounding of separate multiplies and adds. SPIRV-Cross turns
+// each such op into a call of an [[clang::optnone]] helper for Metal (spvFMul, spvFAdd), which
+// keeps Apple's shader compiler from optimizing them: shaders go without it (1080p 16.7 -> 30
+// FPS in the clinic; no depth fighting between passes seen). BB_SHADER_CONTRACT=1: vertex-side
+// stages keep it; 0: every stage keeps it (the shader cache rebuilds itself either way).
+static bool AllowContraction(const EmitContext& ctx) {
+    static const int mode = [] {
+        const char* env = std::getenv("BB_SHADER_CONTRACT");
+        return env ? env[0] - '0' : 2;
+    }();
+    return mode == 2 ||
+           (mode == 1 && (ctx.hw_stage == HwStage::Fragment || ctx.hw_stage == HwStage::Compute));
+}
+
 Id Decorate(EmitContext& ctx, IR::Inst* inst, Id op) {
-    ctx.Decorate(op, spv::Decoration::NoContraction);
+    if (!AllowContraction(ctx)) {
+        ctx.Decorate(op, spv::Decoration::NoContraction);
+    }
     return op;
 }
 

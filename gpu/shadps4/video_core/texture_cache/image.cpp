@@ -5,6 +5,7 @@
 #include <mutex>
 #include "bbport_toggles.h"
 #include <ranges>
+#include "bbport_metal_residency.h"
 #include "common/assert.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
 #include "video_core/renderer_vulkan/vk_instance.h"
@@ -90,6 +91,7 @@ static vk::FormatFeatureFlags2 FormatFeatureFlags(const vk::ImageUsageFlags usag
 UniqueImage::~UniqueImage() {
     if (image) {
         BbStats::vk_image_bytes.fetch_sub(size_bytes, std::memory_order_relaxed);
+        BbMetalResidency::RemoveImage(image);
         vmaDestroyImage(allocator, image, allocation);
     }
 }
@@ -97,6 +99,7 @@ UniqueImage::~UniqueImage() {
 void UniqueImage::Destroy() {
     if (image) {
         BbStats::vk_image_bytes.fetch_sub(size_bytes, std::memory_order_relaxed);
+        BbMetalResidency::RemoveImage(image);
         vmaDestroyImage(allocator, image, allocation);
         image = vk::Image{};
         allocation = {};
@@ -138,6 +141,7 @@ void UniqueImage::Create(const vk::ImageCreateInfo& image_ci) {
                vk::to_string(vk::Result{result}));
     image = vk::Image{unsafe_image};
     size_bytes = alloc_info.size;
+    BbMetalResidency::AddImage(image);
     BbStats::vk_image_bytes.fetch_add(size_bytes, std::memory_order_relaxed);
 }
 

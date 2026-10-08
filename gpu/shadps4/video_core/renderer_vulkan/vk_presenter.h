@@ -105,6 +105,7 @@ private:
     Frame* GetRenderFrame();
 
     void RecreateFrame(Frame* frame, u32 width, u32 height);
+    void GrabFrame(Scheduler& scheduler, vk::CommandBuffer cmdbuf, const Frame* frame);
 
     void SetExpectedGameSize(s32 width, s32 height);
 

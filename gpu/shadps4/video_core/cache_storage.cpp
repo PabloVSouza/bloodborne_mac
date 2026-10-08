@@ -152,8 +152,19 @@ bool WriteVector(const BlobType type, std::filesystem::path&& path_, std::vector
                 }
             } else {
                 using namespace Common::FS;
-                const auto file = IOFile{path, FileAccessMode::Create};
-                file.Write(v);
+                // bbport: written next to it and renamed, so a write cut short (the game closed
+                // or crashed) never leaves a damaged entry under the real name.
+                auto temporary = path;
+                temporary += ".tmp";
+                {
+                    const auto file = IOFile{temporary, FileAccessMode::Create};
+                    file.Write(v);
+                }
+                std::error_code error;
+                std::filesystem::rename(temporary, path, error);
+                if (error) {
+                    std::filesystem::remove(temporary, error);
+                }
             }
         }};
         std::scoped_lock lock{m_request};

@@ -1093,7 +1093,7 @@ void Rasterizer::RunDrawPacket(void* context, const u8* data, u32 size) {
                 continue;
             }
             runtime_fault_recover = &recover;
-            srt.walker_func(snapshot.user_data, flat.data());
+            Shader::CallSrtWalker(srt.walker_func, snapshot.user_data, flat.data());
             runtime_fault_recover = nullptr;
             if (std::memcmp(flat.data(), snapshot.flat, snapshot.flat_size * sizeof(u32)) != 0) {
                 u32 first = 0, count = 0;
@@ -1335,6 +1335,31 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
     bind_prepared = used_prepared;
     motion_draw = pipeline->GetGraphicsKey().motion_vectors;
     motion_geometry = 0;
+    // bbport: a quad list drawn as triangles (QuadsAsTriangles): indexed with the quads split.
+    const bool quad_triangles = regs.primitive_type == AmdGpu::PrimitiveType::QuadList &&
+                                pipeline->GetGraphicsKey().prim_type ==
+                                    AmdGpu::PrimitiveType::TriangleList;
+    // BB_FRAME_STATS: quad/rect lists by path, every 5 s.
+    static const bool prim_stats = std::getenv("BB_FRAME_STATS") != nullptr;
+    if (prim_stats) {
+        static std::atomic<u64> converted{0}, quad_tess{0}, rect_tess{0};
+        static std::atomic<s64> window{0};
+        if (quad_triangles) {
+            ++converted;
+        } else if (regs.primitive_type == AmdGpu::PrimitiveType::QuadList) {
+            ++quad_tess;
+        } else if (regs.primitive_type == AmdGpu::PrimitiveType::RectList) {
+            ++rect_tess;
+        }
+        const s64 now = std::chrono::duration_cast<std::chrono::seconds>(
+                            std::chrono::steady_clock::now().time_since_epoch()).count();
+        s64 last = window.load(std::memory_order_relaxed);
+        if (now - last >= 5 && window.compare_exchange_strong(last, now)) {
+            std::printf("Quad/rect lists: %.1f/s drawn as triangles, %.1f/s quad lists and %.1f/s "
+                        "rect lists tessellated\n", converted.exchange(0) / 5.0,
+                        quad_tess.exchange(0) / 5.0, rect_tess.exchange(0) / 5.0);
+        }
+    }
 
     PrepareRenderState(pipeline);
     if (upscaler->Enabled() && std::popcount(pipeline->GetGraphicsKey().mrt_mask) == 1) {
@@ -1346,7 +1371,7 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
     const PreparedDraw* draw_prepared = bind_prepared;
     // bbport: vertex and index buffers are resolved while the helper binds textures (their
     // commands are recorded after BeginRendering, as before).
-    draw_inputs = {pipeline, draw_prepared, index_offset, is_indexed, true, false};
+    draw_inputs = {pipeline, draw_prepared, index_offset, is_indexed && !quad_triangles, true, false};
     const bool bound = BindResources(pipeline);
     bind_prepared = nullptr; // indirect draws and dispatches bind without prepared sharps
     const bool inputs_resolved = draw_inputs.resolved;
@@ -1358,12 +1383,16 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
 
     if (!inputs_resolved) {
         ResolveVertexBuffers(pipeline, draw_prepared);
-        if (is_indexed) {
+        if (is_indexed && !quad_triangles) {
             ResolveIndexBuffer(index_offset);
         }
     }
     EmitVertexBuffers();
-    if (is_indexed) {
+    if (quad_triangles) {
+        if (!BindQuadTriangles(is_indexed, index_offset)) {
+            return;
+        }
+    } else if (is_indexed) {
         EmitIndexBuffer();
     }
 
@@ -1480,7 +1509,8 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
     const auto [vertex_offset, instance_offset] = GetDrawOffsets(regs, vs_info, fetch_shader);
 
     const vk::Pipeline handle = pipeline->Handle();
-    const u32 num_indices = regs.num_indices;
+    const u32 num_indices = quad_triangles ? regs.num_indices / 4 * 6 : regs.num_indices;
+    const bool draw_indexed = is_indexed || quad_triangles;
     const u32 num_instances = regs.num_instances.NumInstances();
     const u32 first_vertex = vertex_offset;
     const u32 first_instance = instance_offset;
@@ -1493,7 +1523,7 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
     };
     scheduler.RecordCrumb(crumb, [=](vk::CommandBuffer cmdbuf) {
         cmdbuf.bindPipeline(vk::PipelineBindPoint::eGraphics, handle);
-        if (is_indexed) {
+        if (draw_indexed) {
             cmdbuf.drawIndexed(num_indices, num_instances, 0, s32(first_vertex), first_instance);
         } else {
             cmdbuf.draw(num_indices, num_instances, first_vertex, first_instance);
@@ -1539,7 +1569,7 @@ void Rasterizer::DrawIndirect(bool is_indexed, VAddr arg_address, u32 offset, u3
         .vertex_sgpr_offset = vertex_sgpr_offset,
         .instance_sgpr_offset = instance_sgpr_offset,
     };
-    const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline(params);
+    const GraphicsPipeline* pipeline = pipeline_cache.GetGraphicsPipeline(params, nullptr, true);
     if (!pipeline) {
         return;
     }
@@ -2261,6 +2291,60 @@ void Rasterizer::EmitIndexBuffer() {
                       type = index_bind.type](vk::CommandBuffer cmdbuf) {
         cmdbuf.bindIndexBuffer(handle, offset, type);
     });
+}
+
+// bbport (QuadsAsTriangles): the quads of a quad list as two triangles each, (0 1 2) (0 2 3), in an
+// index buffer of the stream buffer: the guest's indices split, or 0 1 2 0 2 3 4 5 6 ... for a
+// non-indexed draw (base vertex: the draw's first vertex). False: the draw is skipped.
+bool Rasterizer::BindQuadTriangles(bool is_indexed, u32 index_offset) {
+    const auto& regs = Regs();
+    const u32 quads = regs.num_indices / 4;
+    if (quads == 0) {
+        return false;
+    }
+    auto& stream = buffer_cache.GetStreamBuffer();
+    const auto split = [quads](auto* out, auto&& corner) {
+        for (u32 q = 0; q < quads; ++q, out += 6) {
+            out[0] = corner(q, 0);
+            out[1] = corner(q, 1);
+            out[2] = corner(q, 2);
+            out[3] = corner(q, 0);
+            out[4] = corner(q, 2);
+            out[5] = corner(q, 3);
+        }
+    };
+    if (!is_indexed) {
+        const auto [data, offset] = stream.Map(u64(quads) * 6 * sizeof(u32), sizeof(u32));
+        split(reinterpret_cast<u32*>(data), [](u32 q, u32 i) { return q * 4 + i; });
+        stream.Commit();
+        index_bind = {stream.Handle(), offset, vk::IndexType::eUint32};
+        EmitIndexBuffer();
+        return true;
+    }
+    const bool is_index16 = regs.index_buffer_type.index_type == AmdGpu::IndexType::Index16;
+    const u32 index_size = is_index16 ? 2 : 4;
+    const VAddr address = regs.index_base_address.Address<VAddr>() + u64(index_offset) * index_size;
+    const u64 bytes = u64(quads) * 4 * index_size;
+    if (!memory->IsValidGpuMapping(address, 0) || memory->ClampRangeSize(address, bytes) != bytes) {
+        return false;
+    }
+    static std::atomic<bool> warned{false};
+    if (buffer_cache.IsRegionGpuModified(address, bytes) && !warned.exchange(true)) {
+        std::printf("Quads as triangles: an index buffer the GPU writes, read by the CPU (%#llx)\n",
+                    static_cast<unsigned long long>(address));
+    }
+    const auto [data, offset] = stream.Map(u64(quads) * 6 * index_size, index_size);
+    if (is_index16) {
+        const auto* in = reinterpret_cast<const u16*>(address);
+        split(reinterpret_cast<u16*>(data), [in](u32 q, u32 i) { return in[q * 4 + i]; });
+    } else {
+        const auto* in = reinterpret_cast<const u32*>(address);
+        split(reinterpret_cast<u32*>(data), [in](u32 q, u32 i) { return in[q * 4 + i]; });
+    }
+    stream.Commit();
+    index_bind = {stream.Handle(), offset, is_index16 ? vk::IndexType::eUint16 : vk::IndexType::eUint32};
+    EmitIndexBuffer();
+    return true;
 }
 
 void Rasterizer::ResolveIndexBuffer(u32 index_offset) {
@@ -4131,7 +4215,17 @@ namespace Vulkan {
 
 void Rasterizer::MarkPass(const GraphicsPipeline* pipeline, const RenderState& state) {
     auto* profiler = GpuProfiler::Get();
-    if (!profiler || !scheduler.WillBeginRendering(state)) {
+    const bool label = Scheduler::PassLabels();
+    // bbport BB_DRAW_LABELS=1 (measurement only: splits every pass): each draw in a pass of its
+    // own, labeled with its shaders, so a Metal System Trace times shaders, not passes.
+    static const bool draw_labels = [] {
+        const char* env = std::getenv("BB_DRAW_LABELS");
+        return env && env[0] == '1';
+    }();
+    if (draw_labels && label) {
+        scheduler.EndRendering();
+    }
+    if ((!profiler && !label) || !scheduler.WillBeginRendering(state)) {
         return;
     }
     const auto& vs = pipeline->GetStage(Shader::SwStage::Vertex);
@@ -4147,7 +4241,7 @@ void Rasterizer::MarkPass(const GraphicsPipeline* pipeline, const RenderState& s
                             : 0;
     }
     const u64 key = XXH3_64bits(parts.data(), sizeof(parts));
-    profiler->Mark(key, [&] {
+    const auto describe = [&] {
         std::string targets;
         for (u32 cb = 0; cb < state.num_color_attachments; ++cb) {
             targets += cb_descs[cb].first
@@ -4161,7 +4255,13 @@ void Rasterizer::MarkPass(const GraphicsPipeline* pipeline, const RenderState& s
                                                texture_cache.GetImage(db_desc.first).info.pixel_format)
                                          : std::string{"-"},
                            vs.pgm_hash, ps ? ps->pgm_hash : 0);
-    });
+    };
+    if (label) {
+        scheduler.SetPassLabel(describe());
+    }
+    if (profiler) {
+        profiler->Mark(key, describe);
+    }
 }
 
 void Rasterizer::NoteFrameStart() {

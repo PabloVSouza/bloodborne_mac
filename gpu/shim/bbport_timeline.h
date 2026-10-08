@@ -2,13 +2,15 @@
 // bbport BB_TIMELINE=<file>: a timeline of the frame's way to the GPU (guest submissions and
 // waits, decoding, Vulkan submissions, GPU completion), to see where the GPU waits for work.
 // Recording starts BB_TIMELINE_START seconds (default 30) after the first event and stops when
-// the buffer is full (~15 s of play); the file is then written once: "ns event arg arg2" per line.
+// the buffer is full (~15 s of play) or BB_TIMELINE_SECONDS have passed; the file is then written
+// once: "ns event arg arg2" per line.
 #pragma once
 
 #include <atomic>
 #include <chrono>
 #include <cstdint>
 #include <cstdio>
+#include <algorithm>
 #include <cstdlib>
 #include <memory>
 
@@ -44,6 +46,10 @@ struct State {
         const char* env = std::getenv("BB_TIMELINE_START");
         return std::int64_t(env ? std::atof(env) * 1e9 : 30e9);
     }();
+    std::int64_t length_ns = [] {
+        const char* env = std::getenv("BB_TIMELINE_SECONDS");
+        return std::int64_t(env ? std::atof(env) * 1e9 : 0);
+    }();
     std::atomic<std::int64_t> first_ns{0};
     std::atomic<std::uint64_t> next{0};
     std::atomic<bool> written{false};
@@ -64,13 +70,14 @@ inline void Write(State& s) {
         return;
     }
     if (FILE* f = std::fopen(s.path, "w")) {
-        for (std::uint64_t i = 0; i < Capacity; ++i) {
+        const std::uint64_t count = std::min<std::uint64_t>(s.next.load(), Capacity);
+        for (std::uint64_t i = 0; i < count; ++i) {
             const auto& e = s.entries[i];
             std::fprintf(f, "%llu %u %u %llu\n", (unsigned long long)e.ns, e.event, e.arg,
                          (unsigned long long)e.arg2);
         }
         std::fclose(f);
-        std::printf("Timeline: %llu events written to %s\n", (unsigned long long)Capacity, s.path);
+        std::printf("Timeline: %llu events written to %s\n", (unsigned long long)count, s.path);
     }
 }
 
@@ -86,6 +93,10 @@ inline void Note(Event event, std::uint64_t arg = 0, std::uint64_t arg2 = 0) {
         first = s.first_ns.load(std::memory_order_relaxed);
     }
     if (now - first < s.start_ns) {
+        return;
+    }
+    if (s.length_ns && now - first >= s.start_ns + s.length_ns) {
+        Write(s);
         return;
     }
     const std::uint64_t index = s.next.fetch_add(1, std::memory_order_relaxed);

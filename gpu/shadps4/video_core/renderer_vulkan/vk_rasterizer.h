@@ -376,6 +376,7 @@ private:
     void EmitVertexBuffers();
     void ResolveIndexBuffer(u32 index_offset);
     void EmitIndexBuffer();
+    bool BindQuadTriangles(bool is_indexed, u32 index_offset);
 
     void ResetBindings(bool is_compute);
 

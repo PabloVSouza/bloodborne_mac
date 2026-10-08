@@ -267,9 +267,10 @@ const Shader::RuntimeInfo& PipelineCache::BuildRuntimeInfo(PipelineSelection& se
         info.sw.vs.step_rate_1 = regs.vgt_instance_step_rate_1;
         info.sw.vs.vertex_sgpr_offset = sel.draw_indirect_params.vertex_sgpr_offset;
         info.sw.vs.instance_sgpr_offset = sel.draw_indirect_params.instance_sgpr_offset;
+        // The key's type: a quad list drawn as triangles has an ordinary vertex stage.
         info.sw.vs.tess_emulated_primitive =
-            regs.primitive_type == AmdGpu::PrimitiveType::RectList ||
-            regs.primitive_type == AmdGpu::PrimitiveType::QuadList;
+            sel.graphics_key.prim_type == AmdGpu::PrimitiveType::RectList ||
+            sel.graphics_key.prim_type == AmdGpu::PrimitiveType::QuadList;
         break;
     case SwStage::TessellationControl: {
         info.sw.tcs.num_input_control_points = regs.ls_hs_config.hs_input_control_points;
@@ -427,8 +428,10 @@ const GraphicsPipeline* PipelineCache::TryPreparedPipeline(const PreparedDraw& p
 }
 
 const GraphicsPipeline* PipelineCache::GetGraphicsPipeline(const DrawIndirectParams params,
-                                                           const PreparedDraw* prepared) {
+                                                           const PreparedDraw* prepared,
+                                                           bool indirect) {
     used_prepared = nullptr;
+    sel.indirect = indirect;
     if (prepared) {
         if (const auto* pipeline = TryPreparedPipeline(*prepared)) {
             used_prepared = prepared;
@@ -492,6 +495,16 @@ const ComputePipeline* PipelineCache::GetComputePipeline() {
     return it->second.get();
 }
 
+bool QuadsAsTriangles() {
+    static const bool enabled = [] {
+        // Off by default: the game draws no quad lists where measured (its tessellated draws
+        // are rect lists, ~44 per frame in the clinic), so this path has not run there yet.
+        const char* env = std::getenv("BB_QUADS_AS_TRIANGLES");
+        return env && env[0] == '1';
+    }();
+    return enabled;
+}
+
 bool PipelineCache::RefreshGraphicsKey(PipelineSelection& sel) {
     std::memset(&sel.graphics_key, 0, sizeof(GraphicsPipelineKey));
     const auto& regs = (*sel.regs);
@@ -509,6 +522,12 @@ bool PipelineCache::RefreshGraphicsKey(PipelineSelection& sel) {
     key.clip_space = regs.clipper_control.clip_space;
     key.provoking_vtx_last = regs.polygon_control.provoking_vtx_last;
     key.prim_type = regs.primitive_type;
+    // bbport: a quad list becomes a triangle list the draw indexes (QuadsAsTriangles): not for
+    // indirect draws or with primitive restart.
+    if (key.prim_type == AmdGpu::PrimitiveType::QuadList && QuadsAsTriangles() && !sel.indirect &&
+        !(regs.enable_primitive_restart & 1)) {
+        key.prim_type = AmdGpu::PrimitiveType::TriangleList;
+    }
     key.polygon_mode = regs.polygon_control.PolyMode();
     key.patch_control_points =
         regs.stage_enable.hs_en ? regs.ls_hs_config.hs_input_control_points : 0;

@@ -7,7 +7,9 @@
 #include <atomic>
 #include <cstdint>
 #include <cstdlib>
-#include <x86intrin.h>
+#if defined(__x86_64__)
+#include <x86intrin.h> // arm64: bbport_arm64_compat.h
+#endif
 
 namespace BbSections {
 enum Id : std::uint32_t {

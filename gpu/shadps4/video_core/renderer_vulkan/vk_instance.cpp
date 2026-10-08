@@ -12,6 +12,7 @@
 #include "sdl_window.h"
 #include "video_core/renderer_vulkan/liverpool_to_vk.h"
 #include "bbport_toggles.h"
+#include "bbport_metal_residency.h"
 #include "video_core/renderer_vulkan/vk_instance.h"
 #include "video_core/renderer_vulkan/vk_platform.h"
 
@@ -272,6 +273,11 @@ bool Instance::CreateDevice() {
     // stand-ins (vk_null_resources.h).
     robust_buffer_access2 = robustness2_features.robustBufferAccess2;
     null_descriptor = robustness2_features.nullDescriptor;
+    // bbport: BB_ROBUST_BUFFER2=0 (experiment): robustBufferAccess only even where the driver has
+    // robustBufferAccess2 (KosmicKrisp: its bounds checks in every shader).
+    if (const char* env = std::getenv("BB_ROBUST_BUFFER2"); env && env[0] == '0') {
+        robust_buffer_access2 = false;
+    }
     if (!robust_buffer_access2) {
         LOG_WARNING(Render_Vulkan, "robustBufferAccess2 unavailable: robustBufferAccess is used");
     }
@@ -285,6 +291,9 @@ bool Instance::CreateDevice() {
     // bbport: without sparse buffers the game's memory is imported as one buffer (unified memory,
     // BufferCache).
     external_memory_host = add_extension(VK_EXT_EXTERNAL_MEMORY_HOST_EXTENSION_NAME);
+    // bbport: the Metal objects behind Vulkan ones, to keep the imported memory resident
+    // (bbport_metal_residency.h).
+    metal_objects = add_extension("VK_EXT_metal_objects");
 #endif
     // Optional
     maintenance_5 = add_extension(VK_KHR_MAINTENANCE_5_EXTENSION_NAME);
@@ -701,6 +710,8 @@ bool Instance::CreateDevice() {
         }
     }
 
+    // bbport: before the allocator, which adds its memory blocks to the residency set.
+    BbMetalResidency::Init(*this);
     CreateAllocator();
     return true;
 }
@@ -732,11 +743,14 @@ void Instance::CreateAllocator() {
     };
     // bbport: new device memory per frame (BB_FRAME_LOG alloc_mb).
     static const VmaDeviceMemoryCallbacks memory_callbacks = {
-        .pfnAllocate = [](VmaAllocator, uint32_t, VkDeviceMemory, VkDeviceSize size, void*) {
+        .pfnAllocate = [](VmaAllocator, uint32_t, VkDeviceMemory memory, VkDeviceSize size,
+                          void*) {
             BbStats::device_alloc_bytes.fetch_add(size, std::memory_order_relaxed);
+            BbMetalResidency::AddMemory(memory);
         },
-        .pfnFree = [](VmaAllocator, uint32_t, VkDeviceMemory, VkDeviceSize size, void*) {
+        .pfnFree = [](VmaAllocator, uint32_t, VkDeviceMemory memory, VkDeviceSize size, void*) {
             BbStats::device_free_bytes.fetch_add(size, std::memory_order_relaxed);
+            BbMetalResidency::RemoveMemory(memory);
         },
     };
 

@@ -953,7 +953,8 @@ void ScanDcb(std::span<const u32> dcb, int depth) {
 }
 // bbport: an invalid packet header (Steam Deck: "PM4 type 0" with dword 0, 8 or 0x10, mid-game): where
 // in which buffer, what surrounds it, and which logged writes of ours landed in the buffer.
-void ReportBadPacket(uintptr_t base, std::size_t dwords, const u32* at, u64 seq, int depth) {
+void ReportBadPacket(uintptr_t base, std::size_t dwords, const u32* at, u64 seq, int depth,
+                     const u32* guest_base = nullptr) {
     const uintptr_t address = reinterpret_cast<uintptr_t>(at);
     int prot = 0, type = -1;
     uintptr_t end = 0;
@@ -972,6 +973,33 @@ void ReportBadPacket(uintptr_t base, std::size_t dwords, const u32* at, u64 seq,
             std::fprintf(stderr, q == at ? " [%08x]" : " %08x", *q);
         }
         std::fprintf(stderr, "\n");
+    }
+    // A decoded copy (BB_COPY_GPU_BUFFERS): the guest's buffer now, at the same place. The same
+    // bytes: the guest wrote them so; others: it was still writing when it submitted (or wrote
+    // again after).
+    if (guest_base) {
+        const std::size_t index = (address - base) / 4;
+        const std::size_t from = index >= 16 ? index - 16 : 0, to = std::min(dwords, index + 16);
+        std::array<u32, 32> now{};
+        const std::size_t got = bb_read_memory(now.data(), reinterpret_cast<uintptr_t>(guest_base + from),
+                                               (to - from) * 4) / 4;
+        std::size_t differing = 0;
+        std::vector<u32> whole(dwords);
+        const std::size_t whole_got =
+            bb_read_memory(whole.data(), reinterpret_cast<uintptr_t>(guest_base), dwords * 4) / 4;
+        const u32* kept = reinterpret_cast<const u32*>(base);
+        for (std::size_t i = 0; i < whole_got; ++i) {
+            differing += whole[i] != kept[i];
+        }
+        std::fprintf(stderr, "  guest buffer %p now (%zu of %zu dwords differ from the copy):\n",
+                     static_cast<const void*>(guest_base), differing, dwords);
+        for (std::size_t i = from; i < from + got; i += 8) {
+            std::fprintf(stderr, "  +%#zx:", i * 4);
+            for (std::size_t j = i; j < std::min(from + got, i + 8); ++j) {
+                std::fprintf(stderr, j == index ? " [%08x]" : " %08x", now[j - from]);
+            }
+            std::fprintf(stderr, "\n");
+        }
     }
     BbWriteLog::DumpRange(base, dwords * 4);
     std::fflush(stderr);
@@ -1013,13 +1041,16 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
         const auto* header = reinterpret_cast<const PM4Header*>(dcb.data());
         const u32 type = header->type;
 
+        // The guest's own buffer behind a decoded copy (top level only).
+        const u32* guest_base = copy && base_addr == reinterpret_cast<uintptr_t>(copy->data.data())
+                                    ? copy->guest_dcb : nullptr;
         switch (type) {
         default:
-            ReportBadPacket(base_addr, dcb_dwords, dcb.data(), seq, dcb_depth);
+            ReportBadPacket(base_addr, dcb_dwords, dcb.data(), seq, dcb_depth, guest_base);
             UNREACHABLE_MSG("Wrong PM4 type {}", type);
             break;
         case 0:
-            ReportBadPacket(base_addr, dcb_dwords, dcb.data(), seq, dcb_depth);
+            ReportBadPacket(base_addr, dcb_dwords, dcb.data(), seq, dcb_depth, guest_base);
             UNREACHABLE_MSG("Unimplemented PM4 type 0, base reg: {}, size: {}",
                             header->type0.base.Value(), header->type0.NumWords());
             break;
@@ -1611,6 +1642,9 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                 break;
             }
             default:
+                ReportBadPacket(base_addr, dcb_dwords, dcb.data(), seq, dcb_depth,
+                                copy && base_addr == reinterpret_cast<uintptr_t>(copy->data.data())
+                                    ? copy->guest_dcb : nullptr);
                 UNREACHABLE_MSG("Unknown PM4 type 3 opcode {:#x} with count {}",
                                 static_cast<u32>(opcode), count);
             }

@@ -9,7 +9,9 @@
 #include <atomic>
 #include <chrono>
 #include <thread>
-#include <x86intrin.h>
+#if defined(__x86_64__)
+#include <x86intrin.h> // arm64: bbport_arm64_compat.h
+#endif
 
 #include "common/thread.h"
 #include "common/types.h"

@@ -7,9 +7,16 @@
 #include "common/types.h"
 
 #include <cstddef>
+#include <stdexcept>
 #include <vector>
 
 namespace Serialization {
+
+/// bbport: a cache entry shorter than its contents claim (a write cut short when the game was
+/// closed or crashed). The loader skips the entry instead of stopping the game.
+struct CorruptedArchive : std::runtime_error {
+    CorruptedArchive() : std::runtime_error("Invalid or corrupted deserialization container/shader cache") {}
+};
 
 template <typename T>
 concept Container = requires(T t) {
@@ -42,8 +49,9 @@ struct Archive {
     }
 
     void Advance(size_t size) {
-        ASSERT_MSG(offset + size <= container.size(),
-                   "Invalid or corrupted deserialization container/shader cache");
+        if (offset + size > container.size()) {
+            throw CorruptedArchive{};
+        }
         offset += size;
     }
 
@@ -105,8 +113,9 @@ struct Writer {
 struct Reader {
     template <typename T>
     void Read(T* ptr, size_t size) {
-        ASSERT_MSG(ar.offset + size <= ar.container.size(),
-                   "Invalid or corrupted deserialization container/shader cache");
+        if (ar.offset + size > ar.container.size()) {
+            throw CorruptedArchive{};
+        }
         std::memcpy(reinterpret_cast<void*>(ptr), ar.CurrPtr(), size);
         ar.Advance(size);
     }

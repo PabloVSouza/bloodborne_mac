@@ -26,6 +26,8 @@
 #include "video_core/renderer_vulkan/vk_scheduler.h"
 #include "bbport_threads.h"
 
+#include <map>
+
 namespace Vulkan {
 
 std::mutex Scheduler::submit_mutex;
@@ -236,12 +238,80 @@ void Scheduler::NotePassBreak(void* caller, std::array<void*, 2> above) {
     last_report = now;
 }
 
+namespace {
+/// bbport BB_PASS_BREAKS=1: a pass started on the same attachment views as the one before it but
+/// with other state (layouts, clears, size): split all the same. What differed, and who ended the
+/// pass before (0: a state change ended it).
+void NoteNearBreak(const RenderState& before, const RenderState& after, void* caller) {
+    if (before.num_color_attachments != after.num_color_attachments) {
+        return;
+    }
+    for (u32 i = 0; i < after.num_color_attachments; ++i) {
+        if (before.color_attachments[i].image_view != after.color_attachments[i].image_view) {
+            return;
+        }
+    }
+    if (before.depth_stencil_attachment.image_view != after.depth_stencil_attachment.image_view) {
+        return;
+    }
+    u32 mask = 0;
+    for (u32 i = 0; i < after.num_color_attachments; ++i) {
+        const auto& x = before.color_attachments[i];
+        const auto& y = after.color_attachments[i];
+        mask |= x.image_layout != y.image_layout ? 1 : 0;
+        mask |= x.is_clear != y.is_clear || x.clear_value != y.clear_value ? 2 : 0;
+    }
+    const auto& x = before.depth_stencil_attachment;
+    const auto& y = after.depth_stencil_attachment;
+    mask |= x.image_layout != y.image_layout ? 4 : 0;
+    mask |= x.is_clear != y.is_clear || x.clear_value != y.clear_value ? 8 : 0;
+    mask |= before.width != after.width || before.height != after.height ||
+                    before.num_layers != after.num_layers ? 16 : 0;
+    static std::mutex mutex;
+    static std::map<std::pair<u32, void*>, u64> counts;
+    static auto last_report = std::chrono::steady_clock::now();
+    std::scoped_lock lk{mutex};
+    ++counts[{mask, caller}];
+    const auto now = std::chrono::steady_clock::now();
+    const double seconds = std::chrono::duration<double>(now - last_report).count();
+    if (seconds < 5.0) {
+        return;
+    }
+    std::vector<std::pair<u64, std::pair<u32, void*>>> top;
+    for (const auto& [key, count] : counts) {
+        top.emplace_back(count, key);
+    }
+    std::ranges::sort(top, std::greater{});
+    std::printf("Near pass breaks (same attachments, other state):\n");
+    for (size_t i = 0; i < std::min<size_t>(top.size(), 8); ++i) {
+        const u32 m = top[i].second.first;
+        Dl_info info{};
+        if (top[i].second.second) {
+            dladdr(top[i].second.second, &info);
+        }
+        std::printf("  %7.1f/s%s%s%s%s%s ended by %s\n", top[i].first / seconds,
+                    m & 1 ? " color-layout" : "", m & 2 ? " color-clear" : "",
+                    m & 4 ? " depth-layout" : "", m & 8 ? " depth-clear" : "", m & 16 ? " size" : "",
+                    top[i].second.second ? (info.dli_sname ? info.dli_sname : "?") : "a state change");
+    }
+    counts.clear();
+    last_report = now;
+}
+} // namespace
+
 void Scheduler::BeginRendering(const RenderState& new_state) {
     if (is_rendering && render_state == new_state) {
         return;
     }
     if (PassBreakTrace() && !is_rendering && last_end_valid && new_state == last_ended_state) {
         NotePassBreak(last_end_caller, last_end_callers);
+    }
+    if (PassBreakTrace()) {
+        if (is_rendering) {
+            NoteNearBreak(render_state, new_state, nullptr);
+        } else if (last_end_valid && !(new_state == last_ended_state)) {
+            NoteNearBreak(last_ended_state, new_state, last_end_caller);
+        }
     }
     last_end_valid = false;
     // bbport: a cut of the command stream (MaybeSplit) closed this render pass; it continues
@@ -251,6 +321,26 @@ void Scheduler::BeginRendering(const RenderState& new_state) {
     EndRendering();
     is_rendering = true;
     render_state = new_state;
+    // bbport (BB_HOIST_COPIES): room before the pass's first command for copies hoisted there.
+    pass_anchor = {};
+    if (HoistCopies() && IsRecordingDeferred()) {
+        void* room = record_chunk->Allocate(PassAnchorRoom, 64);
+        if (!room) {
+            RetireChunk();
+            room = record_chunk->Allocate(PassAnchorRoom, 64);
+        }
+        if (room) {
+            pass_anchor = {record_chunk.get(), record_chunk->LastCommand(),
+                           static_cast<std::byte*>(room), PassAnchorRoom};
+        }
+    }
+    if (!pass_label.empty()) {
+        pass_label_open = true;
+        Record([label = std::move(pass_label)](vk::CommandBuffer cmdbuf) {
+            cmdbuf.beginDebugUtilsLabelEXT(vk::DebugUtilsLabelEXT{.pLabelName = label.c_str()});
+        });
+        pass_label.clear();
+    }
 
     std::array<vk::RenderingAttachmentInfo, 8> color_attachments;
     for (u32 i = 0; i < render_state.num_color_attachments; ++i) {
@@ -317,7 +407,16 @@ void Scheduler::BeginRendering(const RenderState& new_state) {
     });
 }
 
+bool Scheduler::HoistCopies() {
+    static const bool enabled = [] {
+        const char* env = std::getenv("BB_HOIST_COPIES");
+        return !env || env[0] != '0';
+    }();
+    return enabled;
+}
+
 __attribute__((noinline)) void Scheduler::EndRendering() {
+    pass_anchor = {};
     if (!is_rendering) {
         return;
     }
@@ -332,6 +431,10 @@ __attribute__((noinline)) void Scheduler::EndRendering() {
     }
     is_rendering = false;
     Record([](vk::CommandBuffer cmdbuf) { cmdbuf.endRendering(); });
+    if (pass_label_open) {
+        pass_label_open = false;
+        Record([](vk::CommandBuffer cmdbuf) { cmdbuf.endDebugUtilsLabelEXT(); });
+    }
 }
 
 void Scheduler::TraceDirectRecording(void* caller) {
@@ -429,6 +532,10 @@ void Scheduler::KickRecording(bool force) {
     }
     // Callers kick where nobody holds the raw command buffer: deferral resumes.
     direct_mode = false;
+    // bbport: a pass that may still get hoisted copies keeps its chunks until it ends.
+    if (!force && pass_anchor.chunk && is_rendering) {
+        return;
+    }
     if (!force) {
         MaybeSplit();
     }
@@ -478,6 +585,7 @@ void Scheduler::HandOver() {
         ReportProducer("REENTERED recording", u32(bb_gettid()), inside, "HandOver");
     }
     ProducerScope producer{*this, "HandOver"};
+    pass_anchor = {}; // its chunk goes to a recording thread
     if (!record_chunk || !ordered_chunk) {
         // Left behind by another HandOver interrupted between handing a chunk over and
         // taking a new one (see ProducerScope). Recover instead of dereferencing null.

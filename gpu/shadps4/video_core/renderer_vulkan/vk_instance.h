@@ -102,6 +102,10 @@ public:
     bool IsExternalMemoryHostSupported() const {
         return external_memory_host;
     }
+    /// bbport: VK_EXT_metal_objects (MoltenVK): the Metal objects behind Vulkan ones.
+    bool IsMetalObjectsSupported() const {
+        return metal_objects;
+    }
     /// bbport: buffers can be sparse (else the buffer cache uses the game's memory in place).
     bool IsSparseBufferSupported() const {
         return features.sparseBinding && features.sparseResidencyBuffer;
@@ -576,6 +580,7 @@ private:
     bool custom_border_color{};
     bool robust_buffer_access2{};
     bool external_memory_host{};
+    bool metal_objects{};
     bool null_descriptor{};
     bool fragment_shader_barycentric{};
     bool amd_shader_explicit_vertex_parameter{};

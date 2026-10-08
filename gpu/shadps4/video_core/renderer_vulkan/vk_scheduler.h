@@ -11,6 +11,7 @@
 #include <functional>
 #include <memory>
 #include <span>
+#include <string>
 #include <utility>
 #include <vector>
 #include <mutex>
@@ -647,6 +648,42 @@ public:
         return first == nullptr;
     }
 
+    /// bbport: the last command so far (an insertion point for PlaceAfter), or null.
+    [[nodiscard]] void* LastCommand() const noexcept {
+        return last;
+    }
+
+    /// bbport: constructs `func` in `room` (raw storage of this chunk, `left` bytes) and links it
+    /// after `prev` (null: first). Returns the command and the bytes used, or null when it does
+    /// not fit. Commands placed this way run in list order like the others.
+    template <typename Func>
+    void* PlaceAfter(void* prev, std::byte* room, size_t left, Func&& func, size_t* used_bytes) {
+        using Command = TypedCommand<std::decay_t<Func>>;
+        const uintptr_t at = (reinterpret_cast<uintptr_t>(room) + alignof(Command) - 1) &
+                             ~uintptr_t(alignof(Command) - 1);
+        const size_t skip = at - reinterpret_cast<uintptr_t>(room);
+        if (skip + sizeof(Command) > left) {
+            return nullptr;
+        }
+        auto* command = new (reinterpret_cast<void*>(at)) Command(std::forward<Func>(func));
+        auto* before = static_cast<CommandBase*>(prev);
+        if (before) {
+            command->next = before->next;
+            before->next = command;
+            if (last == before) {
+                last = command;
+            }
+        } else {
+            command->next = first;
+            first = command;
+            if (!last) {
+                last = command;
+            }
+        }
+        *used_bytes = skip + sizeof(Command);
+        return static_cast<CommandBase*>(command);
+    }
+
     [[nodiscard]] size_t Size() const noexcept {
         return used;
     }
@@ -882,6 +919,34 @@ public:
     void WaitDeferredSignals();
 
     /// Whether a render pass with exactly this state is open.
+    [[nodiscard]] bool IsRendering() const noexcept {
+        return is_rendering;
+    }
+
+    /// bbport: records `func` before the open render pass began (copies the pass's earlier draws
+    /// did not touch: no pass split, BB_HOIST_COPIES). False when it cannot be placed there (the
+    /// pass's first chunk went to a recording thread, no room, no deferred recording): the
+    /// caller records it the usual way.
+    template <typename Func>
+    bool RecordBeforePass(Func&& func) {
+        if (!pass_anchor.chunk || !is_rendering || !IsRecordingDeferred()) {
+            return false;
+        }
+        size_t used = 0;
+        void* node = pass_anchor.chunk->PlaceAfter(pass_anchor.prev, pass_anchor.room,
+                                                   pass_anchor.left, std::forward<Func>(func), &used);
+        if (!node) {
+            return false;
+        }
+        pass_anchor.prev = node;
+        pass_anchor.room += used;
+        pass_anchor.left -= used;
+        return true;
+    }
+
+    /// bbport BB_HOIST_COPIES (default on): RecordBeforePass is available.
+    static bool HoistCopies();
+
     [[nodiscard]] bool IsRenderingWith(const RenderState& state) const {
         return is_rendering && render_state == state;
     }
@@ -889,6 +954,19 @@ public:
     /// Whether BeginRendering(state) would start a new render pass.
     [[nodiscard]] bool WillBeginRendering(const RenderState& state) const {
         return !(is_rendering && render_state == state);
+    }
+
+    /// bbport BB_PASS_LABELS=1: the next render pass is recorded inside a debug label with this
+    /// name (Metal System Trace / GPU captures name the encoders of each pass).
+    static bool PassLabels() {
+        static const bool enabled = [] {
+            const char* env = std::getenv("BB_PASS_LABELS");
+            return env && env[0] == '1';
+        }();
+        return enabled;
+    }
+    void SetPassLabel(std::string label) {
+        pass_label = std::move(label);
     }
 
     /// CommandBuffer() calls that waited for a recording thread (BB_FRAME_STATS).
@@ -1039,6 +1117,8 @@ private:
     std::jthread priority_pending_ops_thread;
     RenderState render_state;
     bool is_rendering = false;
+    std::string pass_label;  ///< BB_PASS_LABELS: name of the next render pass
+    bool pass_label_open = false;
     /// bbport BB_PASS_BREAKS=1: who ended the last render pass, and its state. A pass started again
     /// with the same state was split there (tile-based GPUs store and reload its attachments).
     void* last_end_caller = nullptr;
@@ -1066,6 +1146,15 @@ private:
     bool resume_rendering = false;     ///< a cut closed the render pass with render_state
     std::unique_ptr<RecordChunk> record_chunk;
     std::vector<std::unique_ptr<RecordChunk>> full_chunks;
+    /// bbport: where commands go to run before the open render pass (RecordBeforePass): room
+    /// reserved in the chunk that holds its begin, valid until that chunk is handed over.
+    struct PassAnchor {
+        RecordChunk* chunk = nullptr;
+        void* prev = nullptr;
+        std::byte* room = nullptr;
+        size_t left = 0;
+    } pass_anchor;
+    static constexpr size_t PassAnchorRoom = 4096;
     std::unique_ptr<RecordChunk> ordered_chunk;
     std::vector<std::unique_ptr<RecordChunk>> ordered_full;
     std::mutex recorder_mutex;

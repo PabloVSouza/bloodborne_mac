@@ -135,6 +135,52 @@ static bool MultiCopy(Rasterizer& rasterizer, const VideoCore::Buffer* src,
     return true;
 }
 
+// bbport (BB_HOIST_COPIES): inside a render pass whose recorded draws did not touch the ranges
+// (no write to the source, no access to the destination since the last barrier, which a pass
+// cannot contain), the copies run before the pass began, then a barrier: the pass is not split
+// (a split stores and reloads all its attachments: the G-buffer ~24 times a frame).
+static bool HoistCopy(Rasterizer& rasterizer, const VideoCore::Buffer* src,
+                      const VideoCore::Buffer* dst, std::span<const vk::BufferCopy> copies) {
+    auto& runtime = rasterizer.GetRuntime();
+    auto& scheduler = runtime.GetScheduler();
+    if (!Scheduler::HoistCopies() || !scheduler.IsRendering() || copies.empty()) {
+        return false;
+    }
+    static std::atomic<u64> hoisted{0}, conflicts{0}, unplaced{0};
+    static const bool stats = std::getenv("BB_FRAME_STATS") != nullptr;
+    for (const auto& copy : copies) {
+        if (runtime.IsBufferAccessed(src, copy.srcOffset, copy.size) ||
+            runtime.IsBufferAccessed(dst, copy.dstOffset, copy.size, true)) {
+            if (stats) ++conflicts;
+            return false;
+        }
+    }
+    const bool placed = scheduler.RecordBeforePass(
+        [src = src->Handle(), dst = dst->Handle(),
+         regions = std::vector<vk::BufferCopy>(copies.begin(), copies.end())](
+            vk::CommandBuffer cmdbuf) {
+            cmdbuf.copyBuffer(src, dst, regions);
+            const vk::MemoryBarrier2 barrier = {
+                .srcStageMask = vk::PipelineStageFlagBits2::eCopy,
+                .srcAccessMask = vk::AccessFlagBits2::eTransferWrite,
+                .dstStageMask = vk::PipelineStageFlagBits2::eAllCommands,
+                .dstAccessMask = vk::AccessFlagBits2::eMemoryRead | vk::AccessFlagBits2::eMemoryWrite,
+            };
+            cmdbuf.pipelineBarrier2(vk::DependencyInfo{.memoryBarrierCount = 1,
+                                                       .pMemoryBarriers = &barrier});
+        });
+    if (stats) {
+        ++(placed ? hoisted : unplaced);
+        if ((hoisted + conflicts + unplaced) % 2000 == 0) {
+            std::printf("Copy shader in passes: %llu hoisted, %llu touched by the pass's draws, %llu "
+                        "not placeable (pass chunk handed over or no room)\n",
+                        (unsigned long long)hoisted.load(), (unsigned long long)conflicts.load(),
+                        (unsigned long long)unplaced.load());
+        }
+    }
+    return placed;
+}
+
 static bool ExecuteCopyShaderHLE(const Shader::Info& info, const AmdGpu::ComputeProgram& cs_program,
                                  Rasterizer& rasterizer) {
     auto& runtime = rasterizer.GetRuntime();
@@ -225,6 +271,10 @@ static bool ExecuteCopyShaderHLE(const Shader::Info& info, const AmdGpu::Compute
         // Execute buffer copies.
         LOG_TRACE(Render_Vulkan, "HLE buffer copy: src_size = {}, dst_size = {}",
                   src_offset_max - src_offset_min, dst_offset_max - dst_offset_min);
+        if (HoistCopy(rasterizer, src_buf, dst_buf, vk_copies)) {
+            batch_start = batch_end;
+            continue;
+        }
         if (!MultiCopy(rasterizer, src_buf, dst_buf, vk_copies)) {
             runtime.CopyBuffer(src_buf, dst_buf, vk_copies);
         }
@@ -236,8 +286,17 @@ static bool ExecuteCopyShaderHLE(const Shader::Info& info, const AmdGpu::Compute
 
 bool ExecuteShaderHLE(const Shader::Info& info, const AmdGpu::Regs& regs,
                       const AmdGpu::ComputeProgram& cs_program, Rasterizer& rasterizer) {
+    // bbport: BB_SKIP_COPY_SHADER=1 (measurement only, renders wrongly): the copy shader does
+    // nothing, so it splits no render pass.
+    static const bool skip_copy = [] {
+        const char* env = std::getenv("BB_SKIP_COPY_SHADER");
+        return env && env[0] == '1';
+    }();
     switch (info.pgm_hash) {
     case COPY_SHADER_HASH:
+        if (skip_copy) {
+            return true;
+        }
         return ExecuteCopyShaderHLE(info, cs_program, rasterizer);
     default:
         return false;

@@ -521,6 +521,54 @@ Frame* Presenter::PrepareBlankFrame(bool present_thread) {
     return frame;
 }
 
+// bbport BB_PRESENT_DUMP_TRIGGER (when the upscaler does not own the display): the presented
+// frame (layout General here) is written to BB_DUMP_DIR as fNNN_present_<w>x<h>_<fmt>.raw once the
+// file named by the trigger exists (tools/grab.sh): the game's own picture, no screen capture.
+void Presenter::GrabFrame(Scheduler& scheduler, vk::CommandBuffer cmdbuf, const Frame* frame) {
+    static const char* trigger = std::getenv("BB_PRESENT_DUMP_TRIGGER");
+    static int index = 0;
+    if (!trigger || std::remove(trigger) != 0) {
+        return;
+    }
+    const char* dir_env = std::getenv("BB_DUMP_DIR");
+    const std::string dir{dir_env && dir_env[0] ? dir_env : "out/dump"};
+    const VkDeviceSize size = VkDeviceSize(frame->width) * frame->height * 4;
+    const VkBufferCreateInfo buffer_ci{.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
+                                       .size = size,
+                                       .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT};
+    const VmaAllocationCreateInfo alloc_ci{
+        .flags = VMA_ALLOCATION_CREATE_MAPPED_BIT | VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT,
+        .usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST};
+    VkBuffer buffer{};
+    VmaAllocation allocation{};
+    VmaAllocationInfo info{};
+    if (vmaCreateBuffer(instance.GetAllocator(), &buffer_ci, &alloc_ci, &buffer, &allocation,
+                        &info) != VK_SUCCESS) {
+        return;
+    }
+    const vk::MemoryBarrier barrier{.srcAccessMask = vk::AccessFlagBits::eMemoryWrite,
+                                    .dstAccessMask = vk::AccessFlagBits::eTransferRead};
+    cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+                           vk::PipelineStageFlagBits::eTransfer, {}, barrier, {}, {});
+    const vk::BufferImageCopy region{.imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1},
+                                     .imageExtent = {frame->width, frame->height, 1}};
+    cmdbuf.copyImageToBuffer(frame->image, vk::ImageLayout::eGeneral, buffer, region);
+    const vk::Format format = swapchain.GetSurfaceFormat().format;
+    const bool bgra = format == vk::Format::eB8G8R8A8Unorm || format == vk::Format::eB8G8R8A8Srgb;
+    char path[512];
+    std::snprintf(path, sizeof(path), "%s/f%03d_present_%ux%u_%s.raw", dir.c_str(), index++,
+                  frame->width, frame->height, bgra ? "bgra" : "rgba");
+    scheduler.DeferPriorityOperation([allocator = instance.GetAllocator(), buffer, allocation,
+                                      info, size, file = std::string{path}] {
+        vmaInvalidateAllocation(allocator, allocation, 0, VK_WHOLE_SIZE);
+        if (FILE* f = std::fopen(file.c_str(), "wb")) {
+            std::fwrite(info.pMappedData, 1, size, f);
+            std::fclose(f);
+        }
+        vmaDestroyBuffer(allocator, buffer, allocation);
+    });
+}
+
 void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame) {
     // Free the frame for reuse
     const auto free_frame = [&] {
@@ -575,6 +623,7 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
             .baseArrayLayer = 0,
             .layerCount = VK_REMAINING_ARRAY_LAYERS,
         };
+        GrabFrame(scheduler, cmdbuf, frame);
         const std::array pre_barriers{
             vk::ImageMemoryBarrier{
                 .srcAccessMask = vk::AccessFlagBits::eNone,

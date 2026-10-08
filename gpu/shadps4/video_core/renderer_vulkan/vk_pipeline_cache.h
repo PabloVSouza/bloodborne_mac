@@ -95,7 +95,16 @@ struct PipelineSelection {
     bool motion = false;
     DrawIndirectParams draw_indirect_params{};
     struct PrepWorker* worker{}; ///< set: read-only selection for a draw-preparation worker
+    /// bbport: an indirect draw (its vertex count is on the GPU: quad lists stay tessellated).
+    bool indirect = false;
 };
+
+/// bbport: quad lists drawn as indexed triangle lists (QuadsAsTriangles) instead of through the
+/// tessellation emulation. On MoltenVK every tessellated draw runs its vertex stages in a compute
+/// pass first, which ends the render pass around each draw (particles: ~150 per frame).
+/// BB_QUADS_AS_TRIANGLES=1 (off by default: not exercised by the game yet; its tessellated
+/// draws are rect lists).
+bool QuadsAsTriangles();
 
 /// bbport: a draw-preparation worker's own program state (see vk_draw_prep.h).
 struct PrepWorker {
@@ -128,7 +137,7 @@ public:
     bool LoadPipelineStage(Serialization::Archive& ar, size_t stage);
 
     const GraphicsPipeline* GetGraphicsPipeline(const DrawIndirectParams params = {},
-                                                const PreparedDraw* prepared = nullptr);
+                                                const PreparedDraw* prepared = nullptr, bool indirect = false);
 
     /// bbport: worker side of draw preparation: selects the pipeline key for `sel.regs` without
     /// creating anything. False when a program or permutation does not exist yet.
