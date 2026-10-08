@@ -11,8 +11,16 @@ extern __thread sigjmp_buf *runtime_fault_recover;
 /* Restarts the game (in-game settings menu, render resolution change). */
 void runtime_restart(void);
 #endif
+#ifdef __x86_64__
 #define ABI __attribute__((sysv_abi))
+#else
+/* arm64: guest code reaches host functions through bbcpu's call bridge (src/cpu/hostcall.S). */
+#define ABI
+#endif
 typedef void (ABI *GuestCallback)(void);
+/* Calls guest function fn with up to 6 integer/pointer arguments: through bbcpu when guest code
+ * is translated (docs/ARM64_NATIVE.md), else directly. Host functions are called directly. */
+uint64_t runtime_guest_call(const void *fn, int count, const uint64_t *args);
 void runtime_start(uint64_t capabilities);
 uintptr_t runtime_resolve(const char *name, int is_data);
 void runtime_report(void);

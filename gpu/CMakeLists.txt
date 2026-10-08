@@ -137,9 +137,15 @@ set_source_files_properties(shim/bbport_overlay.cpp PROPERTIES
 target_include_directories(bbgpu PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/gcn/include third_party/half/include ../src)
 target_compile_definitions(bbgpu PRIVATE BOOST_ASIO_STANDALONE NDEBUG)
 target_compile_options(bbgpu PRIVATE -Wno-deprecated-declarations -Wno-missing-field-initializers)
+# Native arm64 (docs/ARM64_NATIVE.md): x86 cycle-count and spin-wait intrinsics for the GPU library.
+if (CMAKE_OSX_ARCHITECTURES STREQUAL "arm64" OR CMAKE_SYSTEM_PROCESSOR MATCHES "arm64|aarch64")
+    target_compile_options(bbgpu PRIVATE -include ${CMAKE_CURRENT_SOURCE_DIR}/shim/bbport_arm64_compat.h)
+endif()
 # Runtime symbols (runtime_memory_*, runtime_process_*) resolve against bb-probe.
 if (APPLE)
     target_link_options(bbgpu PRIVATE -Wl,-undefined,dynamic_lookup)
+    # Zydis's package names Zycore by -lZycore only: the deps prefix's lib directory.
+    target_link_directories(bbgpu PRIVATE ${CMAKE_PREFIX_PATH}/lib)
 else()
     # Loaded with bb-probe at startup (DT_NEEDED, never dlopen): thread_local access without a
     # TLS descriptor call (_dl_tlsdesc_return was ~2% of the draw recording thread).

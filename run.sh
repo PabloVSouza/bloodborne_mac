@@ -18,10 +18,22 @@ if [[ ${1:-} == --software ]]; then
     if [[ -z ${VK_DRIVER_FILES:-} ]]; then echo 'Lavapipe not found; set VK_DRIVER_FILES.' >&2; exit 1; fi
     export VK_LOADER_LAYERS_DISABLE='~implicit~'
 fi
-# macOS: the game runs as an x86-64 process (Rosetta 2 on Apple Silicon) on MoltenVK.
+# macOS: on MoltenVK; natively on Apple Silicon (BB_ARCH=arm64), or as an x86-64 process under Rosetta 2.
 if [[ $(uname -s) == Darwin ]]; then
-    # The x86-64 MoltenVK from scripts/macos/build-deps.sh, unless a Vulkan driver is chosen.
-    icd=$PWD/deps/macos-x86_64/share/vulkan/icd.d/MoltenVK_icd.json
+    # Apple Silicon: the native arm64 build (bbcpu translates the game's code); BB_ARCH=x86_64
+    # runs the Rosetta 2 build instead. build.sh, started below, follows it.
+    if [[ -z ${BB_ARCH:-} ]]; then
+        [[ $(sysctl -n hw.optional.arm64 2>/dev/null) == 1 ]] && BB_ARCH=arm64 || BB_ARCH=x86_64
+    fi
+    export BB_ARCH
+    # The MoltenVK from scripts/macos/build-deps.sh, unless a Vulkan driver is chosen.
+    # BB_VK_DRIVER=kosmickrisp (native arm64, macOS 26+): Mesa's Vulkan-on-Metal 4 driver from
+    # scripts/macos/build-kosmickrisp.sh instead.
+    icd=$PWD/deps/macos-$BB_ARCH/share/vulkan/icd.d/MoltenVK_icd.json
+    if [[ ${BB_VK_DRIVER:-} == kosmickrisp ]]; then
+        icd=$(ls "$PWD"/deps/macos-arm64-kk/share/vulkan/icd.d/kosmickrisp*.json 2>/dev/null | head -1)
+        [[ -n $icd ]] || { echo 'KosmicKrisp not built (scripts/macos/build-kosmickrisp.sh)' >&2; exit 1; }
+    fi
     if [[ -z ${VK_DRIVER_FILES:-} && -f $icd ]]; then export VK_DRIVER_FILES=$icd; fi
     export MVK_CONFIG_LOG_LEVEL=${MVK_CONFIG_LOG_LEVEL:-1} # errors only
     # Rosetta runs AVX/AVX2/F16C/FMA/BMI code but hides them from CPUID unless asked: the game

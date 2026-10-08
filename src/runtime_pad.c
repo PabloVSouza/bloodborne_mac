@@ -125,11 +125,11 @@ static void report_guest_heap(void) {
     const uint64_t now=now_us();
     if (!enabled || now-last<5000000) return;
     last=now;
-    const uint8_t *stub=(const uint8_t *)(0x800000000ull+0x56e0000+0x1f8c0);
+    const uint8_t *stub=(const uint8_t *)(BB_IMAGE_BASE+0x56e0000+0x1f8c0);
     if (stub[0]!=0xff || stub[1]!=0x25) return; /* another libc */
-    ABI int (*stats)(MallocManagedSize *)=(ABI int (*)(MallocManagedSize *))(uintptr_t)stub;
     MallocManagedSize m={.size=sizeof(m),.version=1};
-    const int result=stats(&m);
+    const uint64_t argument=(uint64_t)(uintptr_t)&m;
+    const int result=(int)runtime_guest_call(stub,1,&argument);
     if (result!=0) { static int told; if (!told++) printf("Guest heap: malloc_stats returned %#x\n",(unsigned)result); return; }
     {
         printf("Guest heap: %.1f MB in use (most %.1f), %.1f MB from the system (most %.1f)\n",

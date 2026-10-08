@@ -9,20 +9,25 @@ fi
 set -euo pipefail
 cd -- "$(dirname -- "$0")"
 mkdir -p out
-# macOS: the game's code is x86-64, so everything is built for x86-64 and runs under Rosetta 2 on
-# Apple Silicon. The x86-64 libraries come from deps/macos-x86_64 (scripts/macos/build-deps.sh);
+# macOS: BB_ARCH=arm64 (the default on Apple Silicon) builds the native program, where bbcpu
+# translates the game's x86-64 code; BB_ARCH=x86_64 the Rosetta 2 one that runs it as it is
+# (docs/ARM64_NATIVE.md). The libraries come from deps/macos-<arch> (scripts/macos/build-deps.sh);
 # Homebrew's are arm64. Apple's clang: its LTO objects match the system linker.
 macos=0
 arch=()
 if [[ $(uname -s) == Darwin ]]; then
     macos=1
-    deps=$PWD/deps/macos-x86_64
-    if [[ ! -f $deps/.built-ffmpeg ]]; then bash scripts/macos/build-deps.sh; fi
+    if [[ -z ${BB_ARCH:-} ]]; then
+        [[ $(sysctl -n hw.optional.arm64 2>/dev/null) == 1 ]] && BB_ARCH=arm64 || BB_ARCH=x86_64
+    fi
+    macarch=$BB_ARCH
+    deps=$PWD/deps/macos-$macarch
+    if [[ ! -f $deps/.built-ffmpeg ]]; then BB_ARCH=$macarch bash scripts/macos/build-deps.sh; fi
     export PKG_CONFIG_LIBDIR=$deps/lib/pkgconfig:$deps/share/pkgconfig
     export PATH=$deps/bin:$PATH
     CC=${CC:-/usr/bin/clang}
     CXX=${CXX:-/usr/bin/clang++}
-    arch=(-arch x86_64)
+    arch=(-arch "$macarch")
 fi
 if [[ -z ${CC:-} ]]; then
     CC=$(command -v cc || command -v gcc || true)
@@ -63,15 +68,17 @@ for patch in gpu/patches/fsr-vulkan/*.patch; do
     fi
 done
 cmake_platform=()
+gpudir=out/gpu
+if (( macos )) && [[ $macarch == arm64 ]]; then gpudir=out/gpu-arm64; fi
 if (( macos )); then
-    cmake_platform=(-DCMAKE_OSX_ARCHITECTURES=x86_64 -DCMAKE_PREFIX_PATH="$deps"
+    cmake_platform=(-DCMAKE_OSX_ARCHITECTURES="$macarch" -DCMAKE_PREFIX_PATH="$deps"
         -DCMAKE_C_COMPILER="$CC" -DCMAKE_CXX_COMPILER="$CXX")
 fi
-cmake -S gpu -B out/gpu -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBB_PGO="$pgo" \
+cmake -S gpu -B "$gpudir" -G Ninja -DCMAKE_BUILD_TYPE=RelWithDebInfo -DBB_PGO="$pgo" \
     -DBB_LTO="${BB_LTO:-ON}" -DBB_PGO_DIR="$PWD/pgo" "${cmake_platform[@]}" >/dev/null
 echo "GPU library: PGO $pgo, LTO ${BB_LTO:-ON}"
 # A failed GPU build must stop here: an older libbbgpu.so would otherwise be used silently.
-if ! ninja -C out/gpu bbgpu > out/gpu-build.log 2>&1; then
+if ! ninja -C "$gpudir" bbgpu > out/gpu-build.log 2>&1; then
     grep -v '^\[' out/gpu-build.log | tail -40 >&2
     echo 'GPU library build failed (full log: out/gpu-build.log)' >&2; exit 1
 fi
@@ -82,7 +89,7 @@ gpu=(-Lout/gpu -lbbgpu -Wl,-rpath,'$ORIGIN/gpu' -Wl,-rpath,"$PWD/out/gpu" -rdyna
 probe_flags=(-no-pie)
 warnings=()
 if (( macos )); then
-    gpu=(-Lout/gpu -lbbgpu -Wl,-rpath,@executable_path/gpu -Wl,-rpath,"$PWD/out/gpu")
+    gpu=(-L"$gpudir" -lbbgpu -Wl,-rpath,@executable_path/gpu -Wl,-rpath,"$PWD/$gpudir")
     probe_flags=()
     warnings=(-Wno-unknown-warning-option -Wno-unused-but-set-global)
     gpu+=(-framework Foundation) # platform.c: NSProcessInfo (bb_latency_critical)
@@ -90,23 +97,37 @@ fi
 runtime=(src/runtime*.c src/platform.c)
 # Third-party decoders: compiled once, without this project's -Werror policy.
 atrac9=(third_party/LibAtrac9/C/src/*.c)
-if [[ ! -f out/libatrac9.a || -n $(find third_party/LibAtrac9/C/src -newer out/libatrac9.a -name '*.c') ]]; then
+atrac9_lib=out/libatrac9.a
+if (( macos )) && [[ $macarch == arm64 ]]; then atrac9_lib=out/libatrac9-arm64.a; fi
+if [[ ! -f $atrac9_lib || -n $(find third_party/LibAtrac9/C/src -newer "$atrac9_lib" -name '*.c') ]]; then
     rm -rf out/atrac9 && mkdir -p out/atrac9
     for source in "${atrac9[@]}"; do "$CC" "${arch[@]}" -std=c99 -O2 -g -w -c "$source" -o "out/atrac9/$(basename "${source%.c}").o"; done
-    ar rcs out/libatrac9.a out/atrac9/*.o
+    rm -f "$atrac9_lib" && ar rcs "$atrac9_lib" out/atrac9/*.o
 fi
-"$CC" "${arch[@]}" -std=c11 -O2 -g -Wall -Wextra -Werror "${warnings[@]}" -pthread "${probe_flags[@]}" "${includes[@]}" -I. -Isrc src/probe.c "${runtime[@]}" src/vulkan_smoke.c out/libatrac9.a -lm "${gpu[@]}" "${libraries[@]}" -o out/bb-probe
+# bbcpu (src/cpu, docs/ARM64_NATIVE.md): runs the game's x86-64 code through the translator
+# (macOS; BB_CPU=interp on x86-64). Zydis decodes the guest's instructions.
+cpu=()
+if (( macos )); then
+    rm -rf out/cpu && mkdir -p out/cpu
+    for source in src/cpu/*.c src/cpu/hostcall.S; do
+        "$CC" "${arch[@]}" -std=gnu11 -O2 -g -Wall -Wextra -Werror -Wno-unused-parameter -I"$deps/include" \
+            -c "$source" -o "out/cpu/$(basename "$source").o"
+    done
+    rm -f out/libbbcpu.a && ar rcs out/libbbcpu.a out/cpu/*.o
+    cpu=(out/libbbcpu.a "$deps/lib/libZydis.a")
+fi
+"$CC" "${arch[@]}" -std=c11 -O2 -g -Wall -Wextra -Werror "${warnings[@]}" -pthread "${probe_flags[@]}" "${includes[@]}" -I. -Isrc src/probe.c "${runtime[@]}" src/vulkan_smoke.c "$atrac9_lib" "${cpu[@]}" -lm "${gpu[@]}" "${libraries[@]}" -o out/bb-probe
 echo "Built $PWD/out/bb-probe"
 # GPU check for run.sh (live_resolution=auto) and the launcher's gamepad list (--gamepads).
 "$CC" "${arch[@]}" -std=c11 -O2 -Wall -Wextra -Werror "${includes[@]}" tools/gpu_capabilities.c "${libraries[@]}" -o out/bb-gpu-capabilities
 if [[ ${1:-} == --test ]]; then
     "$CC" "${arch[@]}" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread "${includes[@]}" -I. -Isrc tests/test_pad.c src/platform.c "${libraries[@]}" -o out/pad-test
     out/pad-test
-    "$CC" "${arch[@]}" -std=c11 -O2 -g -Wall -Wextra -Werror "${warnings[@]}" -pthread "${includes[@]}" -I. -Isrc tests/test_runtime.c "${runtime[@]}" out/libatrac9.a -lm "${gpu[@]}" "${libraries[@]}" -o out/runtime-test
+    "$CC" "${arch[@]}" -std=c11 -O2 -g -Wall -Wextra -Werror "${warnings[@]}" -pthread "${includes[@]}" -I. -Isrc tests/test_runtime.c "${runtime[@]}" "$atrac9_lib" "${cpu[@]}" -lm "${gpu[@]}" "${libraries[@]}" -o out/runtime-test
     out/runtime-test
     "$CC" "${arch[@]}" -std=c11 -O2 -g -Wall -Wextra -Werror -pthread -Isrc tests/test_file_mods.c src/platform.c -o out/file-mods-test
     out/file-mods-test
-    "$CC" "${arch[@]}" -std=c11 -O2 -g -Wall -Wextra -Werror "${warnings[@]}" -pthread "${includes[@]}" -I. -Isrc tests/test_sema.c "${runtime[@]}" out/libatrac9.a -lm "${gpu[@]}" "${libraries[@]}" -o out/sema-test
+    "$CC" "${arch[@]}" -std=c11 -O2 -g -Wall -Wextra -Werror "${warnings[@]}" -pthread "${includes[@]}" -I. -Isrc tests/test_sema.c "${runtime[@]}" "$atrac9_lib" "${cpu[@]}" -lm "${gpu[@]}" "${libraries[@]}" -o out/sema-test
     out/sema-test
     "$CC" "${arch[@]}" -std=c11 -D_GNU_SOURCE -O2 -g -Wall -Wextra -Werror -I. -Isrc tests/test_content.c src/runtime_content.c src/platform.c -o out/content-test
     out/content-test

@@ -14,7 +14,42 @@
 extern "C" {
 #endif
 
-#ifdef __APPLE__
+#if defined(__APPLE__) && defined(__aarch64__)
+#define BB_MACOS 1
+/* Native arm64: guest code runs in bbcpu. A fault in translated code has the guest registers
+ * where the JIT keeps them (src/cpu/jit_arm64.c: rax-rdi x19-x26, r8-r14 x9-x15, r15 x27), so
+ * the x86 names map onto those; rip is the host pc (bbcpu_describe_fault names the guest block). */
+#define BB_UC_RIP(uc) ((uc)->uc_mcontext->__ss.__pc)
+#define BB_UC_RAX(uc) ((uc)->uc_mcontext->__ss.__x[19])
+#define BB_UC_RCX(uc) ((uc)->uc_mcontext->__ss.__x[20])
+#define BB_UC_RDX(uc) ((uc)->uc_mcontext->__ss.__x[21])
+#define BB_UC_RBX(uc) ((uc)->uc_mcontext->__ss.__x[22])
+#define BB_UC_RSP(uc) ((uc)->uc_mcontext->__ss.__x[23])
+#define BB_UC_RBP(uc) ((uc)->uc_mcontext->__ss.__x[24])
+#define BB_UC_RSI(uc) ((uc)->uc_mcontext->__ss.__x[25])
+#define BB_UC_RDI(uc) ((uc)->uc_mcontext->__ss.__x[26])
+#define BB_UC_R8(uc) ((uc)->uc_mcontext->__ss.__x[9])
+#define BB_UC_R9(uc) ((uc)->uc_mcontext->__ss.__x[10])
+#define BB_UC_R10(uc) ((uc)->uc_mcontext->__ss.__x[11])
+#define BB_UC_R11(uc) ((uc)->uc_mcontext->__ss.__x[12])
+#define BB_UC_R12(uc) ((uc)->uc_mcontext->__ss.__x[13])
+#define BB_UC_R13(uc) ((uc)->uc_mcontext->__ss.__x[14])
+#define BB_UC_R14(uc) ((uc)->uc_mcontext->__ss.__x[15])
+#define BB_UC_R15(uc) ((uc)->uc_mcontext->__ss.__x[27])
+#define BB_UC_EFLAGS(uc) ((uc)->uc_mcontext->__ss.__cpsr)
+/* Bit 1 set for a write, as x86's page fault error code (ESR_EL1.WnR is bit 6). */
+#define BB_UC_ERR(uc) ((((uc)->uc_mcontext->__es.__esr) >> 5) & 2)
+#define BB_IS_ACCESS_FAULT(sig) ((sig) == SIGSEGV || (sig) == SIGBUS)
+#define BB_STAT_ATIM(st) ((st)->st_atimespec)
+#define BB_STAT_MTIM(st) ((st)->st_mtimespec)
+#define BB_STAT_CTIM(st) ((st)->st_ctimespec)
+#ifndef CLOCK_REALTIME_COARSE
+#define CLOCK_REALTIME_COARSE CLOCK_REALTIME
+#endif
+#ifndef PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP
+#define PTHREAD_RECURSIVE_MUTEX_INITIALIZER_NP PTHREAD_RECURSIVE_MUTEX_INITIALIZER
+#endif
+#elif defined(__APPLE__)
 #define BB_MACOS 1
 /* Signal contexts. ucontext_t comes from <signal.h>; <ucontext.h> needs _XOPEN_SOURCE here. */
 #define BB_UC_RIP(uc) ((uc)->uc_mcontext->__ss.__rip)
@@ -79,15 +114,30 @@ extern "C" {
  * [BB_LOW_MIN, BB_LOW_MAX): host memory the guest sees (image, stacks, trampolines, the runtime's
  * heap on macOS). [BB_USER_MIN, BB_USER_MAX): the game's own mappings. Under Rosetta 2 the range
  * [0xfc0000000, 0x7000000000) cannot be mapped, so the game's range starts at 448 GiB there. */
+#if defined(BB_MACOS) && defined(__aarch64__)
+/* Native arm64 macOS: [0x180000000, 0x7000000000) is the shared region and the host's own
+ * allocations start at 0x7000000000 (the GPU driver reserves ~24 GiB there before main), so the
+ * game's range starts at 512 GiB and the low range sits just below its end, under 1 TiB. The
+ * image is relocated (link_modules.py relocations). */
+#define BB_LOW_MIN UINT64_C(0xf400000000)
+#define BB_LOW_MAX UINT64_C(0xfbc0000000)
+#define BB_USER_MIN UINT64_C(0x8000000000)
+#define BB_USER_MAX UINT64_C(0xf400000000)
+#elif defined(BB_MACOS)
 #define BB_LOW_MIN UINT64_C(0x0800000000)
-#ifdef BB_MACOS
 #define BB_LOW_MAX UINT64_C(0x0fc0000000)
 #define BB_USER_MIN UINT64_C(0x7000000000)
 #else
+#define BB_LOW_MIN UINT64_C(0x0800000000)
 #define BB_LOW_MAX UINT64_C(0x1000000000)
 #define BB_USER_MIN UINT64_C(0x1000000000)
 #endif
+#ifndef BB_USER_MAX
 #define BB_USER_MAX UINT64_C(0xfc00000000)
+#endif
+/* Where the loader mapped the game image (probe.c sets it before any guest code runs). */
+extern uint64_t bb_image_base;
+#define BB_IMAGE_BASE bb_image_base
 
 /* Host thread id (logs, statistics). */
 uint64_t bb_gettid(void);

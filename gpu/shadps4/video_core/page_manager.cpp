@@ -54,8 +54,9 @@ extern "C" void runtime_memory_set_write_watch(uintptr_t address, uint64_t size,
 
 namespace VideoCore {
 
-constexpr size_t PM_PAGE_SIZE = 4_KB;
-constexpr size_t PM_PAGE_BITS = 12;
+// bbport: the host's page; protections cover whole pages (16K on Apple Silicon).
+constexpr size_t PM_PAGE_BITS = TRACKER_PAGE_BITS;
+constexpr size_t PM_PAGE_SIZE = size_t(1) << PM_PAGE_BITS;
 
 namespace {
 /// bbport: write fault sites (guest code), an open-addressing table keyed by the instruction.
@@ -67,7 +68,8 @@ struct FaultSite {
 };
 std::array<FaultSite, 512> fault_sites;
 std::atomic<u64> fault_sites_dropped{0};
-constexpr u64 GuestImage = 0x800000000ull, GuestImageEnd = 0x810000000ull;
+#define GuestImage u64(BB_IMAGE_BASE)
+#define GuestImageEnd (u64(BB_IMAGE_BASE) + 0x10000000ull)
 constexpr u64 HostSite = 1ull << 63;
 constexpr u64 ReadSite = 1ull << 62; ///< a read fault (BB_READBACKS=2 protects GPU data from reads)
 

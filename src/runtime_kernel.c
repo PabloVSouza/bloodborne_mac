@@ -3,6 +3,7 @@
  * use FreeBSD numbering; host errno values never reach the guest directly. */
 #define _GNU_SOURCE
 #include "runtime.h"
+#include "cpu/bbcpu.h"
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -17,7 +18,9 @@
 #include <signal.h>
 #include <sys/resource.h>
 #include <sys/time.h>
+#ifdef __x86_64__
 #include <x86intrin.h>
+#endif
 #define ERR(n) ((int32_t)(UINT32_C(0x80020000)|(n)))
 #define PAGE 16384
 
@@ -86,9 +89,18 @@ static ABI uint64_t process_time_counter(void) {
     return (uint64_t)(t.tv_sec-process_start.tv_sec)*1000000000+(uint64_t)(t.tv_nsec-process_start.tv_nsec);
 }
 static ABI uint64_t process_time_frequency(void) { return 1000000000; }
-static ABI uint64_t read_tsc(void) { return __rdtsc(); }
+/* The game's TSC: the CPU's own on x86-64 when its code runs natively, else bbcpu's clock (the
+ * same one its translated rdtsc reads). */
+static ABI uint64_t read_tsc(void) {
+#ifdef __x86_64__
+    if (!bbcpu_enabled()) return __rdtsc();
+#endif
+    return bbcpu_tsc();
+}
 static uint64_t tsc_hz;
 static ABI uint64_t tsc_frequency(void) {
+    if (!tsc_hz && bbcpu_enabled()) tsc_hz=BBCPU_TSC_HZ;
+#ifdef __x86_64__
     if (!tsc_hz) {
         struct timespec a,b,nap={0,20000000};
         clock_gettime(CLOCK_MONOTONIC,&a); uint64_t t0=__rdtsc();
@@ -97,6 +109,7 @@ static ABI uint64_t tsc_frequency(void) {
         uint64_t ns=(uint64_t)(b.tv_sec-a.tv_sec)*1000000000+(uint64_t)(b.tv_nsec-a.tv_nsec);
         tsc_hz=(t1-t0)*1000000000/(ns ? ns : 1);
     }
+#endif
     return tsc_hz;
 }
 /* Shared with the GPU library so flip/label timestamps use the guest's clock. */
@@ -232,7 +245,7 @@ static ABI int32_t thread_once(int32_t *once,void (ABI *routine)(void)) {
         int32_t state=__atomic_load_n(once,__ATOMIC_ACQUIRE);
         if (state==1) return 0;
         if (state==0 && __atomic_compare_exchange_n(once,&state,2,0,__ATOMIC_ACQ_REL,__ATOMIC_ACQUIRE)) {
-            routine();
+            runtime_guest_call((const void *)routine,0,NULL);
             __atomic_store_n(once,1,__ATOMIC_RELEASE);
             return 0;
         }
@@ -276,7 +289,8 @@ void runtime_thread_keys_cleanup(void) {
             void *value=key_values[i];
             if (!value || !keys[i].used || !keys[i].destructor) continue;
             key_values[i]=NULL; any=1;
-            keys[i].destructor(value);
+            const uint64_t argument=(uint64_t)(uintptr_t)value;
+            runtime_guest_call((const void *)keys[i].destructor,1,&argument);
         }
         if (!any) break;
     }
@@ -329,7 +343,7 @@ static _Thread_local int wait_tid;
 void runtime_guest_call_sites(uint64_t out[3]);
 /* The first three return addresses into the game's code on this thread's stack (guest offsets). */
 static void guest_call_sites(uint64_t out[3]) {
-    const uintptr_t text_lo=0x800000000ull, text_hi=0x800000000ull+0x50d96dcull;
+    const uintptr_t text_lo=BB_IMAGE_BASE, text_hi=BB_IMAGE_BASE+0x50d96dcull;
     static _Thread_local uintptr_t stack_hi;
     if (!stack_hi) stack_hi=bb_thread_stack_top();
     const uintptr_t *sp=(const uintptr_t *)__builtin_frame_address(0);
@@ -393,7 +407,7 @@ static void sample_handler(int sig, siginfo_t *info, void *context) {
     (void)sig; (void)info;
     const ucontext_t *uc=(const ucontext_t *)context;
     uint64_t rip=(uint64_t)BB_UC_RIP(uc);
-    const uint64_t text_lo=0x800000000ull, text_hi=0x800000000ull+0x50d96dcull;
+    const uint64_t text_lo=BB_IMAGE_BASE, text_hi=BB_IMAGE_BASE+0x50d96dcull;
     /* Host code: keyed with its guest caller, the first return address into the game on the stack. */
     uint64_t caller=0;
     if (rip<text_lo || rip>=text_hi) {
@@ -445,7 +459,7 @@ static void sample_report(void) {
         got_dumped=1;
         const char *got=getenv("BB_DUMP_GOT"); /* a guest GOT slot (offset): which host function it calls */
         if (got && *got) {
-            const uint64_t target=*(const uint64_t *)(0x800000000ull+strtoull(got,NULL,0));
+            const uint64_t target=*(const uint64_t *)(BB_IMAGE_BASE+strtoull(got,NULL,0));
             Dl_info dl={0};
             dladdr((void *)target,&dl);
             printf("Runtime: GOT %s -> %#lx %s:%s+%#lx\n",got,(unsigned long)target,dl.dli_fname ? dl.dli_fname : "?",
@@ -459,7 +473,7 @@ static void sample_report(void) {
     for (int i=1;i<n;++i) for (int j=i;j>0 && rows[j].count>rows[j-1].count;--j) { __typeof__(rows[0]) t=rows[j]; rows[j]=rows[j-1]; rows[j-1]=t; }
     printf("Thread samples (%llu):",(unsigned long long)total);
     for (int i=0;i<n && i<16;++i) {
-        const uint64_t text_lo=0x800000000ull, text_hi=0x800000000ull+0x50d96dcull;
+        const uint64_t text_lo=BB_IMAGE_BASE, text_hi=BB_IMAGE_BASE+0x50d96dcull;
         if (rows[i].rip>=text_lo && rows[i].rip<text_hi) {
             printf("%s +%#lx %.1f%%",i?";":"",(unsigned long)(rows[i].rip-text_lo),100.0*rows[i].count/total);
             continue;

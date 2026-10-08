@@ -9,7 +9,9 @@
 #include <cstring>
 #include "platform.h"
 #include <unistd.h>
-#include <x86intrin.h>
+#if defined(__x86_64__)
+#include <x86intrin.h> // arm64: bbport_arm64_compat.h
+#endif
 
 namespace BbWriteLog {
 namespace {

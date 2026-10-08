@@ -8,7 +8,12 @@
 
 namespace VideoCore {
 
+#if defined(__aarch64__) && defined(__APPLE__)
+// bbport: the host's page (write tracking protects whole pages): 16K on Apple Silicon.
+constexpr u64 TRACKER_PAGE_BITS = 14;
+#else
 constexpr u64 TRACKER_PAGE_BITS = 12; // 4K pages
+#endif
 constexpr u64 TRACKER_BYTES_PER_PAGE = 1ULL << TRACKER_PAGE_BITS;
 
 constexpr u64 TRACKER_HIGHER_PAGE_BITS = 22; // each region is 4MB

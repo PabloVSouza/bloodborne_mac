@@ -6,9 +6,10 @@
 #include <string.h>
 #include <inttypes.h>
 #include "runtime.h"
+#include "cpu/bbcpu.h"
 #include "gpu/bbgpu.h"
-#if !defined(__x86_64__) || !defined(__GNUC__)
-#error This prototype requires x86-64 GCC or Clang (including MinGW).
+#if !(defined(__x86_64__) || (defined(__aarch64__) && defined(__APPLE__))) || !defined(__GNUC__)
+#error This prototype requires x86-64 (GCC or Clang) or Apple Silicon (bbcpu).
 #endif
 #ifdef _WIN32
 #include <windows.h>
@@ -94,7 +95,7 @@ static ABI __attribute__((noreturn)) void unresolved(uint32_t id, uintptr_t argu
     fflush(NULL);
     _exit(20); /* no destructors: GPU, audio and guest threads are still running */
 }
-#ifndef _WIN32
+#if !defined(_WIN32) && defined(__x86_64__)
 /* enter_on_stack(entry, arg0, arg1, stack_top): call entry(arg0,arg1) on a new stack. */
 void enter_on_stack(void *entry, void *arg0, void *arg1, void *top);
 #ifdef __APPLE__
@@ -110,6 +111,8 @@ __asm__(".text\n.globl " ENTER_ON_STACK "\n" ENTER_ON_STACK ":\n"
 static ABI void guest_exit(void) { puts("Runtime: process finalizer callback reached"); }
 #ifndef _WIN32
 static void fault(int sig, siginfo_t *info, void *context) {
+    /* Translated code's unaligned ordered accesses (bbcpu, arm64). */
+    if (sig == SIGBUS && bbcpu_handle_alignment_fault(context)) return;
     /* GPU page tracking (write-protected guest pages) is resolved first. */
     if (gpu_enabled && BB_IS_ACCESS_FAULT(sig) && bbgpu_handle_fault(context, info->si_addr)) return;
     /* A speculative guest memory read (runtime_memory.c) failed: resume its recovery point. */
@@ -136,6 +139,21 @@ static void fault(int sig, siginfo_t *info, void *context) {
     else
         snprintf(line, sizeof(line), "Fault (signal %d) at RIP %p, address %p\n", sig, (void *)rip, info->si_addr);
     { ssize_t written_=write(2, line, strlen(line)); (void)written_; }
+    if (bbcpu_describe_fault(context, line, sizeof(line))) {
+        { ssize_t written_=write(2, line, strlen(line)); (void)written_; }
+        /* Guest call chain: return addresses into the image on the guest stack (translated code
+         * has no host frames for them). */
+        uint64_t stack[256];
+        const size_t got = bb_read_memory(stack, (uintptr_t)BB_UC_RSP(uc), sizeof(stack));
+        int n = snprintf(line, sizeof(line), "  guest stack, image offsets:");
+        for (size_t i = 0, shown = 0; i < got / 8 && shown < 24 && n < (int)sizeof(line) - 24; ++i)
+            if (stack[i] - (uintptr_t)image < 0x10000000) {
+                n += snprintf(line + n, sizeof(line) - (size_t)n, " +%#lx@%zx", (unsigned long)(stack[i] - (uintptr_t)image), i * 8);
+                ++shown;
+            }
+        snprintf(line + n, sizeof(line) - (size_t)n, "\n");
+        { ssize_t written_=write(2, line, strlen(line)); (void)written_; }
+    }
     if (gpu_enabled) bbgpu_dump_guest_writes(context);
     /* Outside the image and any shared object (generated code, a freed mapping): the mapping
      * that holds RIP, and the thread. */
@@ -297,8 +315,8 @@ static __attribute__((noreturn)) void run_game(void) {
         /* Dependencies start in link order (libc first), as the PS4 dynamic linker does. */
         for (uint64_t m=0;m<module_count;++m) {
             printf("Starting linked module %" PRIu64 " at image offset 0x%" PRIx64 "; native bindings=%" PRIu64 "\n",m,modules[m].init,game.nb);
-            typedef int (ABI *ModuleInit)(uint64_t,void *,void *);
-            int result=((ModuleInit)(image+modules[m].init))(0,NULL,NULL);
+            const uint64_t init_args[3]={0,0,0};
+            int result=(int)runtime_guest_call(image+modules[m].init,3,init_args);
             printf("Module %" PRIu64 " initializer returned %d\n",m,result);
             if (result) fail("module initializer failed");
         }
@@ -314,7 +332,16 @@ static __attribute__((noreturn)) void run_game(void) {
     enum { MAIN_STACK=8*1024*1024 };
     unsigned char *stack=runtime_low_map(MAIN_STACK,PROT_READ|PROT_WRITE);
     if (!stack) fail("cannot allocate guest main stack");
+#ifdef BB_HAVE_BBCPU
+    if (bbcpu_enabled()) {
+        const uint64_t entry_args[2]={(uint64_t)(uintptr_t)&params,(uint64_t)(uintptr_t)guest_exit};
+        bbcpu_call_on_stack((uintptr_t)(image+game.entry),2,entry_args,stack,MAIN_STACK-64);
+        fail("entry unexpectedly returned");
+    }
+#endif
+#ifdef __x86_64__
     enter_on_stack(image+game.entry,&params,(void *)guest_exit,stack+MAIN_STACK-64);
+#endif
 #endif
     fail("entry unexpectedly returned");
 }
@@ -486,6 +513,8 @@ int main(int argc, char **argv) {
         }
     }
     image = allocate(round_page(size));
+    /* Guest hooks and diagnostics find the image through BB_IMAGE_BASE (platform.h). */
+    bb_image_base = (uint64_t)(uintptr_t)image;
     if (fread(image, 1, size, f) != size || fgetc(f) != EOF) fail("incorrect memory image size");
     fclose(f);
     if (!cpu_only) {
@@ -543,6 +572,17 @@ int main(int argc, char **argv) {
     }
     if (!executable_entry) fail("entry is not executable");
     printf("Mapped %" PRIu64 " bytes, %" PRIu64 " segments; applied %" PRIu64 " relocations\n", size, ns, nr);
+#ifdef BB_HAVE_BBCPU
+    if (bbcpu_enabled()) {
+        /* The game's code (libc and Fios2 are linked into the image) runs through bbcpu. */
+        for (uint64_t i = 0; i < ns; ++i)
+            if (segments[i].flags & 1) bbcpu_add_guest_code((uintptr_t)(image + segments[i].address), segments[i].size);
+        bbcpu_set_tls_displacement(tls_displacement);
+        /* The traps of unresolved imports are x86 stubs jumping to unresolved(): interpreted too. */
+        bbcpu_add_guest_code((uintptr_t)traps, round_page((import_count + 1) * 32));
+        puts("CPU: guest code runs through bbcpu (BB_CPU=interp)");
+    }
+#endif
     game.native_libc=native_libc; game.ns=ns; game.nb=nb; game.procparam=procparam; game.entry=entry;
     memcpy(game.main_tls,main_tls,sizeof(game.main_tls)); game.segments=segments;
 #ifdef __APPLE__

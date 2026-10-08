@@ -5,6 +5,7 @@
  * enforced by a PS4 scheduler. */
 #define _GNU_SOURCE
 #include "runtime.h"
+#include "cpu/bbcpu.h"
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -39,6 +40,9 @@ typedef struct GuestThread {
     ThreadAttr attr;
     char name[32];
     int detached, finished, joined, host_owned;
+    /* bbcpu: the guest's stack (the host thread keeps its own). */
+    void *guest_stack;
+    size_t guest_stack_size;
     jmp_buf exit_jump;
     struct GuestThread *next;
 } GuestThread;
@@ -71,6 +75,7 @@ static void attach(GuestThread *t) {
     tcb[2]=(uint64_t)(uintptr_t)t;           /* tcb_thread */
     t->tls_block=block; t->tcb=tcb;
     bb_guest_tls_set(tcb);
+    if (bbcpu_enabled()) bbcpu_set_thread_pointer((uintptr_t)tcb);
     current=t;
 }
 static GuestThread *new_thread(void) {
@@ -217,7 +222,15 @@ static void *host_start(void *p) {
     GuestThread *t=p;
     attach(t);
     set_host_name(t->name);
-    if (!setjmp(t->exit_jump)) t->result=t->entry(t->argument);
+    if (!setjmp(t->exit_jump)) {
+#ifdef BB_HAVE_BBCPU
+        if (bbcpu_enabled()) {
+            const uint64_t argument=(uint64_t)(uintptr_t)t->argument;
+            t->result=(void *)(uintptr_t)bbcpu_call_on_stack((uintptr_t)t->entry,1,&argument,t->guest_stack,t->guest_stack_size);
+        } else
+#endif
+        t->result=t->entry(t->argument);
+    }
     runtime_thread_keys_cleanup();
     pthread_mutex_lock(&lock); t->finished=1; ++exited; pthread_mutex_unlock(&lock);
     return t->result;
@@ -238,7 +251,12 @@ static int32_t create(GuestThread **out,ThreadAttr **attr_slot,GuestEntry entry,
     /* Whole 16 KiB pages: macOS rejects other stack sizes (the thread would get a high default stack). */
     size_t stack_bytes=((size_t)stack+STACK_MARGIN+16383)&~(size_t)16383;
     void *stack_memory=runtime_low_map(stack_bytes,PROT_READ|PROT_WRITE);
-    if (stack_memory) pthread_attr_setstack(&host,stack_memory,stack_bytes);
+    if (bbcpu_enabled()) {
+        /* Translated guest code: the low stack is the guest's, the host thread gets its own. */
+        if (!stack_memory) { fputs("STOP: cannot allocate a guest stack\n",stderr); exit(21); }
+        t->guest_stack=stack_memory; t->guest_stack_size=stack_bytes;
+        pthread_attr_setstacksize(&host,1024*1024);
+    } else if (stack_memory) pthread_attr_setstack(&host,stack_memory,stack_bytes);
     else pthread_attr_setstacksize(&host,stack_bytes);
     publish(t);
     /* Publish the handle before the thread can run and inspect itself. */

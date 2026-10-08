@@ -16,6 +16,7 @@
 #define LOW_PAGE UINT64_C(16384)
 static uint64_t low_align(uint64_t n) { return (n+LOW_PAGE-1) & ~(LOW_PAGE-1); }
 static pthread_mutex_t low_lock=PTHREAD_MUTEX_INITIALIZER;
+uint64_t bb_image_base;
 static uintptr_t low_next=BB_LOW_MIN;
 
 #ifndef __APPLE__
@@ -189,6 +190,23 @@ void bb_shared_memory_zero(int fd, unsigned char *view, uint64_t offset, uint64_
  * would otherwise place their memory where the game later maps its own with MAP_FIXED. */
 static int low_reserved, user_reserved;
 static int reserve(uintptr_t start, uintptr_t end) {
+#ifdef __aarch64__
+    /* Native arm64 ignores mmap hints in this part of the address space: a fixed allocation,
+     * which fails rather than overlap anything. */
+    mach_vm_address_t at=start;
+    if (mach_vm_allocate(mach_task_self(),&at,end-start,VM_FLAGS_FIXED)==KERN_SUCCESS) {
+        mprotect((void *)start,end-start,PROT_NONE);
+        return 1;
+    }
+    fprintf(stderr,"bbport: cannot reserve guest addresses %#lx-%#lx; mapped there:\n",(unsigned long)start,(unsigned long)end);
+    for (mach_vm_address_t a=start; a<end;) {
+        mach_vm_size_t size=0; vm_region_basic_info_data_64_t info; mach_msg_type_number_t count=VM_REGION_BASIC_INFO_COUNT_64; mach_port_t object;
+        if (mach_vm_region(mach_task_self(),&a,&size,VM_REGION_BASIC_INFO_64,(vm_region_info_t)&info,&count,&object) || a>=end) break;
+        fprintf(stderr,"  %#llx-%#llx\n",(unsigned long long)a,(unsigned long long)(a+size));
+        a+=size;
+    }
+    return 0;
+#endif
     void *p=mmap((void *)start,end-start,PROT_NONE,MAP_PRIVATE|MAP_ANON|MAP_NORESERVE,-1,0);
     if (p==(void *)start) return 1;
     if (p!=MAP_FAILED) munmap(p,end-start);

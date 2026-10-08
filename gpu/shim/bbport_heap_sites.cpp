@@ -5,6 +5,8 @@
 // its code on the stack). Report() prints the sites whose live bytes grew since the last report:
 // what leaks when the guest heap runs out.
 #include "bbport_heap_sites.h"
+#include "platform.h"
+#include "bbport_guest_call.h"
 
 #include <algorithm>
 #include <atomic>
@@ -20,9 +22,9 @@ using u32 = std::uint32_t;
 using u64 = std::uint64_t;
 using s64 = std::int64_t;
 
-constexpr u64 ImageBase = 0x800000000ull;
-constexpr u64 TextEnd = ImageBase + 0x50d96dcull;
-constexpr u64 LibcBase = ImageBase + 0x56e0000ull;
+#define ImageBase u64(BB_IMAGE_BASE)
+#define TextEnd (ImageBase + 0x50d96dcull)
+#define LibcBase (ImageBase + 0x56e0000ull)
 constexpr u64 SlotMalloc = 0xba190, SlotFree = 0xba198, SlotCalloc = 0xba1a0,
               SlotRealloc = 0xba1a8, SlotMemalign = 0xba1b0, SlotPosixMemalign = 0xba1b8;
 
@@ -157,7 +159,7 @@ void Remove(void* ptr, const u64* frame) {
 }
 
 void* WrapMalloc(std::size_t size) {
-    void* p = orig_malloc(size);
+    void* p = BbGuest::Call<void*>(orig_malloc, size);
     if (p && (count_allocs.fetch_add(1, std::memory_order_relaxed), tracking)) {
         Add(p, size, static_cast<const u64*>(__builtin_frame_address(0)));
     }
@@ -167,17 +169,17 @@ void WrapFree(void* p) {
     if (p && (count_frees.fetch_add(1, std::memory_order_relaxed), tracking)) {
         Remove(p, static_cast<const u64*>(__builtin_frame_address(0)));
     }
-    orig_free(p);
+    BbGuest::Call<void>(orig_free, p);
 }
 void* WrapCalloc(std::size_t count, std::size_t size) {
-    void* p = orig_calloc(count, size);
+    void* p = BbGuest::Call<void*>(orig_calloc, count, size);
     if (p && (count_allocs.fetch_add(1, std::memory_order_relaxed), tracking)) {
         Add(p, count * size, static_cast<const u64*>(__builtin_frame_address(0)));
     }
     return p;
 }
 void* WrapRealloc(void* old, std::size_t size) {
-    void* p = orig_realloc(old, size);
+    void* p = BbGuest::Call<void*>(orig_realloc, old, size);
     if (!old && p) {
         count_allocs.fetch_add(1, std::memory_order_relaxed);
     } else if (old && !p && size == 0) {
@@ -194,14 +196,14 @@ void* WrapRealloc(void* old, std::size_t size) {
     return p;
 }
 void* WrapMemalign(std::size_t alignment, std::size_t size) {
-    void* p = orig_memalign(alignment, size);
+    void* p = BbGuest::Call<void*>(orig_memalign, alignment, size);
     if (p && (count_allocs.fetch_add(1, std::memory_order_relaxed), tracking)) {
         Add(p, size, static_cast<const u64*>(__builtin_frame_address(0)));
     }
     return p;
 }
 int WrapPosixMemalign(void** out, std::size_t alignment, std::size_t size) {
-    const int result = orig_posix_memalign(out, alignment, size);
+    const int result = BbGuest::Call<int>(orig_posix_memalign, out, alignment, size);
     if (result == 0 && out && *out &&
         (count_allocs.fetch_add(1, std::memory_order_relaxed), tracking)) {
         Add(*out, size, static_cast<const u64*>(__builtin_frame_address(0)));

@@ -16,6 +16,10 @@ namespace Shader {
 using PFN_SrtWalker = void PS4_SYSV_ABI (*)(const u32* /*user_data*/, u32* /*flat_dst*/);
 PFN_SrtWalker RegisterWalkerCode(const u8* ptr, size_t size);
 
+/// bbport: runs a walker. The walkers are x86-64 code (Xbyak); on arm64 bbcpu runs them
+/// (their code buffer is registered as guest code, docs/ARM64_NATIVE.md).
+void CallSrtWalker(PFN_SrtWalker walker, const u32* user_data, u32* flat_dst);
+
 struct PersistentSrtInfo {
     // Special case when fetch shader uses step rates.
     struct SrtSharpReservation {

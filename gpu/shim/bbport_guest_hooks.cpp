@@ -13,6 +13,7 @@
 #include <sys/mman.h>
 #include <sys/uio.h>
 #include "platform.h"
+#include "cpu/bbcpu.h"
 #include <unistd.h>
 
 extern "C" void runtime_memory_note_write(uintptr_t address, uint64_t size);
@@ -20,7 +21,7 @@ extern "C" void runtime_memory_note_write(uintptr_t address, uint64_t size);
 namespace BbGuestHooks {
 namespace {
 using u64 = std::uint64_t;
-constexpr u64 ImageBase = 0x800000000ull;
+#define ImageBase u64(BB_IMAGE_BASE)
 
 /// The return of the game's GPU memory range allocator 0x26aa070 (rdi allocator, rsi size,
 /// rdx alignment; it returns a node: [node + 8] the start, [[node + 0x18] + 8] the end, the next
@@ -67,17 +68,21 @@ void* LoaderCopy(void* dst, const void* src, std::size_t size) {
 }
 struct sigaction previous_action {};
 
-void OnTrap(int sig, siginfo_t* info, void* context) {
-    auto* g = static_cast<ucontext_t*>(context);
-    const u64 rip = u64(BB_UC_RIP(g)) - 1; // past the int3
+/// The registers a hook reads or changes (from a signal context or from bbcpu).
+struct TrapRegs {
+    u64 rax, rbx, rsp, rbp, rdi, rip; // rip: past the int3
+};
+
+bool HandleTrap(TrapRegs& g) {
+    const u64 rip = g.rip - 1; // past the int3
     if (rip == ImageBase + ReleaseCheck) {
-        const auto result = static_cast<std::int32_t>(BB_UC_RAX(g) & 0xffffffff);
+        const auto result = static_cast<std::int32_t>(g.rax & 0xffffffff);
         BbHeapSites::NoteReleaseCheck(std::uint32_t(result));
-        BB_UC_RIP(g) = u64(ImageBase + (result < 0 ? 0xbb5fc7 : ReleaseCheck + 2));
-        return;
+        g.rip = u64(ImageBase + (result < 0 ? 0xbb5fc7 : ReleaseCheck + 2));
+        return true;
     }
     if (rip == ImageBase + CollectorEntry) {
-        const u64 allocator = u64(BB_UC_RDI(g));
+        const u64 allocator = g.rdi;
         for (std::size_t i = 0; i < BbStats::range_allocators.size(); ++i) {
             u64 expected = 0;
             if (BbStats::range_allocators[i].load(std::memory_order_relaxed) == allocator ||
@@ -89,26 +94,26 @@ void OnTrap(int sig, siginfo_t* info, void* context) {
                 break;
             }
         }
-        BB_UC_RSP(g) -= 8; // push rbp
-        *reinterpret_cast<u64*>(BB_UC_RSP(g)) = u64(BB_UC_RBP(g));
-        BB_UC_RIP(g) = u64(ImageBase + CollectorEntry + 1);
-        return;
+        g.rsp -= 8; // push rbp
+        *reinterpret_cast<u64*>(g.rsp) = g.rbp;
+        g.rip = u64(ImageBase + CollectorEntry + 1);
+        return true;
     }
     for (const u64 site : HeapAllocReturns) {
         if (rip != ImageBase + site) {
             continue;
         }
-        const u64 address = u64(BB_UC_RAX(g));
-        const u64 size = *reinterpret_cast<const u64*>(u64(BB_UC_RBP(g)) - 0x50);
+        const u64 address = g.rax;
+        const u64 size = *reinterpret_cast<const u64*>(g.rbp - 0x50);
         if (address != 0 && size != 0 && size < (u64(1) << 32)) {
             on_range_allocated(address, size);
         }
-        BB_UC_RBX(g) = BB_UC_RAX(g);
-        BB_UC_RIP(g) = u64(ImageBase + site + sizeof(HeapAllocReturnCode));
-        return;
+        g.rbx = g.rax;
+        g.rip = u64(ImageBase + site + sizeof(HeapAllocReturnCode));
+        return true;
     }
     if (rip == ImageBase + AllocReturn) {
-        if (const u64 node = u64(BB_UC_RAX(g))) {
+        if (const u64 node = g.rax) {
             const u64 start = *reinterpret_cast<const u64*>(node + 8);
             const u64 next = *reinterpret_cast<const u64*>(node + 0x18);
             const u64 end = next ? *reinterpret_cast<const u64*>(next + 8) : start;
@@ -116,9 +121,9 @@ void OnTrap(int sig, siginfo_t* info, void* context) {
                 on_range_allocated(start, end - start);
             }
         }
-        BB_UC_RSP(g) += 0x18;
-        BB_UC_RIP(g) = u64(ImageBase + AllocReturn + sizeof(AllocReturnCode));
-        return;
+        g.rsp += 0x18;
+        g.rip = u64(ImageBase + AllocReturn + sizeof(AllocReturnCode));
+        return true;
     }
     for (std::size_t i = 0; i < MemcpySites.size(); ++i) {
         const auto& site = MemcpySites[i];
@@ -128,9 +133,32 @@ void OnTrap(int sig, siginfo_t* info, void* context) {
         hits[i].fetch_add(1, std::memory_order_relaxed);
         // The call, to LoaderCopy instead of the game's memcpy: push the return address, jump.
         const u64 ret = ImageBase + site.offset + 5;
-        BB_UC_RSP(g) -= 8;
-        *reinterpret_cast<u64*>(BB_UC_RSP(g)) = ret;
-        BB_UC_RIP(g) = u64(reinterpret_cast<u64>(&LoaderCopy));
+        g.rsp -= 8;
+        *reinterpret_cast<u64*>(g.rsp) = ret;
+        g.rip = u64(reinterpret_cast<u64>(&LoaderCopy));
+        return true;
+    }
+    return false;
+}
+
+/// bbcpu (translated guest code): the int3 reaches this instead of SIGTRAP.
+int BbcpuTrap(BbGuestRegs* r) {
+    TrapRegs g{r->r[0], r->r[3], r->r[4], r->r[5], r->r[7], r->rip};
+    if (!HandleTrap(g)) {
+        return 0;
+    }
+    r->r[0] = g.rax; r->r[3] = g.rbx; r->r[4] = g.rsp; r->r[5] = g.rbp; r->r[7] = g.rdi;
+    r->rip = g.rip;
+    return 1;
+}
+
+void OnTrap(int sig, siginfo_t* info, void* context) {
+    auto* uc = static_cast<ucontext_t*>(context);
+    TrapRegs g{u64(BB_UC_RAX(uc)), u64(BB_UC_RBX(uc)), u64(BB_UC_RSP(uc)), u64(BB_UC_RBP(uc)),
+               u64(BB_UC_RDI(uc)), u64(BB_UC_RIP(uc))};
+    if (HandleTrap(g)) {
+        BB_UC_RAX(uc) = g.rax; BB_UC_RBX(uc) = g.rbx; BB_UC_RSP(uc) = g.rsp;
+        BB_UC_RBP(uc) = g.rbp; BB_UC_RDI(uc) = g.rdi; BB_UC_RIP(uc) = g.rip;
         return;
     }
     if (previous_action.sa_flags & SA_SIGINFO) {
@@ -162,6 +190,9 @@ bool Patch(u64 address, const unsigned char* expected, std::size_t size) {
     __atomic_store_n(reinterpret_cast<unsigned char*>(address), static_cast<unsigned char>(0xcc),
                      __ATOMIC_SEQ_CST);
     mprotect(page, span, PROT_READ | PROT_EXEC);
+    if (bbcpu_enabled()) {
+        bbcpu_invalidate(address, size);
+    }
     return true;
 }
 } // namespace
@@ -176,6 +207,9 @@ void Install(RangeCallback on_gpu_range_allocated) {
     action.sa_flags = SA_SIGINFO | SA_NODEFER;
     sigemptyset(&action.sa_mask);
     sigaction(SIGTRAP, &action, &previous_action);
+    if (bbcpu_enabled()) {
+        bbcpu_set_trap_handler(BbcpuTrap);
+    }
     int patched = 0;
     for (const auto& site : MemcpySites) {
         patched += Patch(ImageBase + site.offset, site.code, sizeof(site.code));

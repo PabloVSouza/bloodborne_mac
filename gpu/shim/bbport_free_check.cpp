@@ -646,11 +646,12 @@ LabelTrap& Trap() {
     static LabelTrap trap;
     return trap;
 }
-constexpr u64 ImageBase = 0x800000000ull, ImageEnd = 0x810000000ull;
+#define ImageBase u64(BB_IMAGE_BASE)
+#define ImageEnd (u64(BB_IMAGE_BASE) + 0x10000000ull)
 /// The guest allocator's release, and the branch of its GPU range collector (0x26aa860) taken
 /// for a block whose label reads 4 (done).
-constexpr u64 FreeHook = ImageBase + 0x263b9b0;
-constexpr u64 GcHook = ImageBase + 0x26aa986;
+#define FreeHook (ImageBase + 0x263b9b0)
+#define GcHook (ImageBase + 0x26aa986)
 
 /// BB_LABEL_TRAP: 1 pool pages with pending labels read-only (every guest write into them is
 /// single-stepped: slow, it hid the bug), 2 breakpoints on the guest allocator's release and on

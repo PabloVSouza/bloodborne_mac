@@ -1,6 +1,7 @@
 /* Narrow, explicit PS4 libc contracts. No automatic success stubs. */
 #define _CRT_RAND_S
 #include "runtime.h"
+#include "cpu/bbcpu.h"
 #include "gpu/bbgpu.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -119,6 +120,13 @@ static int register_handler(ExitHandler value) {
     pthread_mutex_unlock(&handler_lock);
     return 0;
 }
+uint64_t runtime_guest_call(const void *fn, int count, const uint64_t *args) {
+    if (bbcpu_enabled() && bbcpu_is_guest((uintptr_t)fn)) return bbcpu_call((uintptr_t)fn, count, args);
+    uint64_t a[6] = {0};
+    for (int i = 0; i < count && i < 6; ++i) a[i] = args[i];
+    typedef uint64_t (ABI *Function)(uint64_t, uint64_t, uint64_t, uint64_t, uint64_t, uint64_t);
+    return ((Function)fn)(a[0], a[1], a[2], a[3], a[4], a[5]);
+}
 static ABI int guest_atexit(GuestCallback callback) {
     if (!callback) return -1;
     ++calls_atexit;
@@ -139,8 +147,9 @@ void runtime_finalize(void *dso) {
         if (!i) { pthread_mutex_unlock(&handler_lock); return; }
         ExitHandler handler = handlers[i-1]; handlers[i-1].active = 0;
         pthread_mutex_unlock(&handler_lock);
-        if (handler.with_arg) handler.callback.with_arg(handler.argument);
-        else handler.callback.plain();
+        const uint64_t argument = (uint64_t)(uintptr_t)handler.argument;
+        if (handler.with_arg) runtime_guest_call((const void *)handler.callback.with_arg, 1, &argument);
+        else runtime_guest_call((const void *)handler.callback.plain, 0, NULL);
     }
 }
 static ABI void guest_finalize(void *dso) { runtime_finalize(dso); }

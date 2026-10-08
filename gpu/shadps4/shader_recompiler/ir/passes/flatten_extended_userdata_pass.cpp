@@ -23,16 +23,51 @@
 #include "shader_recompiler/ir/srt_gvn_table.h"
 #include "shader_recompiler/ir/value.h"
 
-#ifdef ARCH_X86_64
+#if defined(ARCH_X86_64) || defined(__aarch64__)
+
+#include "bbport_guest_call.h"
+#include "cpu/bbcpu.h"
 
 using namespace Xbyak::util;
 
+#ifdef __aarch64__
+/// arm64: the walkers' x86 code is data bbcpu reads, never executed: plain read/write memory
+/// (Apple Silicon faults on writes to memory Xbyak would have made executable).
+struct WalkerDataAllocator : Xbyak::Allocator {
+    bool useProtect() const override {
+        return false;
+    }
+};
+static WalkerDataAllocator g_srt_allocator;
+static Xbyak::CodeGenerator g_srt_codegen(32_MB, nullptr, &g_srt_allocator);
+#else
 static Xbyak::CodeGenerator g_srt_codegen(32_MB);
+#endif
 static const u8* g_srt_codegen_start = nullptr;
 
 namespace Shader {
 
+/// arm64: the walkers' x86-64 code runs in bbcpu; its buffer is guest code to it.
+static void RegisterWalkerBuffer() {
+#ifdef __aarch64__
+    static const bool registered = [] {
+        bbcpu_add_guest_code(reinterpret_cast<uintptr_t>(g_srt_codegen.getCode()), 32_MB);
+        return true;
+    }();
+    (void)registered;
+#endif
+}
+
+void CallSrtWalker(PFN_SrtWalker walker, const u32* user_data, u32* flat_dst) {
+#ifdef __aarch64__
+    BbGuest::Call<void>(walker, user_data, flat_dst);
+#else
+    walker(user_data, flat_dst);
+#endif
+}
+
 PFN_SrtWalker RegisterWalkerCode(const u8* ptr, size_t size) {
+    RegisterWalkerBuffer();
     const auto func_addr = (PFN_SrtWalker)g_srt_codegen.getCurr();
     g_srt_codegen.db(ptr, size);
     g_srt_codegen.ready();
@@ -640,13 +675,16 @@ static void GenerateSrtProgram(Info& info, PassInfo& pass_info) {
         return;
     }
 
-    // Register the signal handler for SRT walker, if not already registered
+    RegisterWalkerBuffer();
     if (g_srt_codegen_start == nullptr) {
         g_srt_codegen_start = c.getCurr();
+#ifdef ARCH_X86_64
+        // The SRT walker's fault handler (native walkers only; arm64 runs them in bbcpu).
         auto* signals = Core::Signals::Instance();
         // Call after the memory invalidation handler
         constexpr u32 priority = 1;
         signals->RegisterAccessViolationHandler(SrtWalkerSignalHandler, priority);
+#endif
     }
 
     info.srt_info.walker_func = c.getCurr<PFN_SrtWalker>();
