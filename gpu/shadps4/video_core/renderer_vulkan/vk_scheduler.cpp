@@ -323,6 +323,7 @@ void Scheduler::BeginRendering(const RenderState& new_state) {
     render_state = new_state;
     // bbport (BB_HOIST_COPIES): room before the pass's first command for copies hoisted there.
     pass_anchor = {};
+    ++pass_anchor_generation;
     if (HoistCopies() && IsRecordingDeferred()) {
         void* room = record_chunk->Allocate(PassAnchorRoom, 64);
         if (!room) {
@@ -417,6 +418,7 @@ bool Scheduler::HoistCopies() {
 
 __attribute__((noinline)) void Scheduler::EndRendering() {
     pass_anchor = {};
+    ++pass_anchor_generation;
     if (!is_rendering) {
         return;
     }
@@ -586,6 +588,7 @@ void Scheduler::HandOver() {
     }
     ProducerScope producer{*this, "HandOver"};
     pass_anchor = {}; // its chunk goes to a recording thread
+    ++pass_anchor_generation;
     if (!record_chunk || !ordered_chunk) {
         // Left behind by another HandOver interrupted between handing a chunk over and
         // taking a new one (see ProducerScope). Recover instead of dereferencing null.

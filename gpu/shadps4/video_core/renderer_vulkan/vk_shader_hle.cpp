@@ -155,11 +155,55 @@ static bool HoistCopy(Rasterizer& rasterizer, const VideoCore::Buffer* src,
             return false;
         }
     }
-    const bool placed = scheduler.RecordBeforePass(
-        [src = src->Handle(), dst = dst->Handle(),
-         regions = std::vector<vk::BufferCopy>(copies.begin(), copies.end())](
-            vk::CommandBuffer cmdbuf) {
-            cmdbuf.copyBuffer(src, dst, regions);
+    // Copies hoisted before the same pass share one command and one barrier (each command of
+    // its own was a Metal blit pass: ~120 a frame), unless one touches what an earlier one wrote
+    // or reads: then a new batch, after the earlier one's barrier.
+    struct Batch {
+        struct Copy {
+            vk::Buffer src, dst;
+            std::vector<vk::BufferCopy> regions;
+        };
+        std::vector<Copy> copies;
+        std::vector<std::pair<u64, u64>> written, read; ///< by buffer handle: [start, end)
+        vk::Buffer handle{};
+    };
+    static std::shared_ptr<Batch> batch;
+    static u64 batch_generation = ~0ull;
+    const auto overlaps = [](const std::vector<std::pair<u64, u64>>& ranges, u64 start, u64 end) {
+        for (const auto& [a, b] : ranges) {
+            if (start < b && a < end) return true;
+        }
+        return false;
+    };
+    const u64 base_src = reinterpret_cast<u64>(static_cast<VkBuffer>(src->Handle())) << 40;
+    const u64 base_dst = reinterpret_cast<u64>(static_cast<VkBuffer>(dst->Handle())) << 40;
+    bool joins = batch && batch_generation == scheduler.PassAnchorGeneration();
+    for (const auto& copy : copies) {
+        if (!joins) break;
+        const u64 s0 = base_src + copy.srcOffset, d0 = base_dst + copy.dstOffset;
+        joins = !overlaps(batch->written, s0, s0 + copy.size) &&
+                !overlaps(batch->written, d0, d0 + copy.size) &&
+                !overlaps(batch->read, d0, d0 + copy.size);
+    }
+    const auto note = [&](Batch& b) {
+        b.copies.push_back({src->Handle(), dst->Handle(),
+                            std::vector<vk::BufferCopy>(copies.begin(), copies.end())});
+        for (const auto& copy : copies) {
+            b.read.emplace_back(base_src + copy.srcOffset, base_src + copy.srcOffset + copy.size);
+            b.written.emplace_back(base_dst + copy.dstOffset, base_dst + copy.dstOffset + copy.size);
+        }
+    };
+    bool placed = false;
+    if (joins) {
+        note(*batch);
+        placed = true;
+    } else {
+        auto fresh = std::make_shared<Batch>();
+        note(*fresh);
+        placed = scheduler.RecordBeforePass([fresh](vk::CommandBuffer cmdbuf) {
+            for (const auto& copy : fresh->copies) {
+                cmdbuf.copyBuffer(copy.src, copy.dst, copy.regions);
+            }
             const vk::MemoryBarrier2 barrier = {
                 .srcStageMask = vk::PipelineStageFlagBits2::eCopy,
                 .srcAccessMask = vk::AccessFlagBits2::eTransferWrite,
@@ -169,6 +213,11 @@ static bool HoistCopy(Rasterizer& rasterizer, const VideoCore::Buffer* src,
             cmdbuf.pipelineBarrier2(vk::DependencyInfo{.memoryBarrierCount = 1,
                                                        .pMemoryBarriers = &barrier});
         });
+        if (placed) {
+            batch = std::move(fresh);
+            batch_generation = scheduler.PassAnchorGeneration();
+        }
+    }
     if (stats) {
         ++(placed ? hoisted : unplaced);
         if ((hoisted + conflicts + unplaced) % 2000 == 0) {

@@ -944,6 +944,12 @@ public:
         return true;
     }
 
+    /// bbport: changes whenever the place RecordBeforePass records to changes (a new pass,
+    /// its chunk handed over): commands placed there before belong to an earlier one.
+    [[nodiscard]] u64 PassAnchorGeneration() const noexcept {
+        return pass_anchor_generation;
+    }
+
     /// bbport BB_HOIST_COPIES (default on): RecordBeforePass is available.
     static bool HoistCopies();
 
@@ -1155,6 +1161,7 @@ private:
         size_t left = 0;
     } pass_anchor;
     static constexpr size_t PassAnchorRoom = 4096;
+    u64 pass_anchor_generation = 0;
     std::unique_ptr<RecordChunk> ordered_chunk;
     std::vector<std::unique_ptr<RecordChunk>> ordered_full;
     std::mutex recorder_mutex;
