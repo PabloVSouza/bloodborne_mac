@@ -1,9 +1,9 @@
 #!/usr/bin/env bash
 # macOS: packages the current build (bash build.sh first) as Bloodborne.app in
 # dist/bloodborne_mac-<version>-<arch>.dmg. No game files are included. The app needs nothing
-# installed: it carries the launcher (launcher/macos/Launcher.swift), bash, Python and the
-# libraries.
-#   Contents/MacOS/             Bloodborne (launcher), bb-probe, bb-gpu-capabilities, bash
+# installed: the Tauri launcher (launcher/app, built here with npm and cargo) carries the game,
+# bash, Python and the libraries.
+#   Contents/MacOS/             bloodborne-launcher, bb-probe, bb-gpu-capabilities, bash
 #   Contents/Frameworks/        libbbgpu, MoltenVK, Vulkan loader, SDL3, FFmpeg
 #   Contents/Resources/game/    run.sh, scripts/, patches/, share/vulkan/icd.d/
 #   Contents/Resources/python/  standalone Python 3
@@ -29,15 +29,17 @@ name=bloodborne_mac-$version-$arch
 work=dist/$name
 app=$work/Bloodborne.app
 rm -rf "$work" "dist/$name.dmg"
-mkdir -p "$app/Contents/MacOS" "$app/Contents/Frameworks" "$app/Contents/Resources/game/share/vulkan/icd.d"
+mkdir -p "$work"
 macos=$app/Contents/MacOS
 frameworks=$app/Contents/Frameworks
 game=$app/Contents/Resources/game
 
-# The launcher: Xcode's toolchain (the Command Line Tools have no SwiftUI macro plugins).
-developer=${DEVELOPER_DIR:-$(ls -d /Applications/Xcode*.app 2>/dev/null | sort -V | tail -1)/Contents/Developer}
-DEVELOPER_DIR=$developer xcrun swiftc -parse-as-library -O -target arm64-apple-macos13.0 \
-    launcher/macos/Launcher.swift -o "$macos/Bloodborne"
+# The launcher (Tauri: React interface, Rust backend), the bundle the rest goes into.
+(cd launcher/app && { [[ -d node_modules ]] || npm ci; } && npx tauri build --bundles app)
+cp -R launcher/app/src-tauri/target/release/bundle/macos/Bloodborne.app "$app"
+plutil -replace CFBundleShortVersionString -string "$short_version" "$app/Contents/Info.plist"
+plutil -replace CFBundleVersion -string "$version" "$app/Contents/Info.plist"
+mkdir -p "$frameworks" "$game/share/vulkan/icd.d"
 install -m755 out/bb-probe out/bb-gpu-capabilities "$deps/app-runtime/bin/bash" "$macos/"
 install -m755 "$gpudir/libbbgpu.dylib" "$frameworks/"
 copy_deps() { # copy_deps FILE: the non-system libraries FILE links against, recursively
@@ -87,35 +89,11 @@ cp run.sh LICENSE README.md "$game/"
 cp -R scripts patches "$game/"
 cp -R "$deps/app-runtime/python" "$app/Contents/Resources/python"
 find "$app" -name __pycache__ -type d -prune -exec rm -rf {} +
-iconset=$(mktemp -d)/AppIcon.iconset
-DEVELOPER_DIR=$developer xcrun swift launcher/macos/make_icon.swift "$iconset" >/dev/null
-iconutil -c icns "$iconset" -o "$app/Contents/Resources/AppIcon.icns"
-cat > "$app/Contents/Info.plist" <<EOF
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key><string>Bloodborne</string>
-    <key>CFBundleDisplayName</key><string>Bloodborne</string>
-    <key>CFBundleIdentifier</key><string>io.github.pablovsouza.bloodborne-mac</string>
-    <key>CFBundleExecutable</key><string>Bloodborne</string>
-    <key>CFBundleIconFile</key><string>AppIcon</string>
-    <key>CFBundlePackageType</key><string>APPL</string>
-    <key>CFBundleShortVersionString</key><string>$short_version</string>
-    <key>CFBundleVersion</key><string>$version</string>
-    <key>LSMinimumSystemVersion</key><string>13.0</string>
-    <key>LSApplicationCategoryType</key><string>public.app-category.role-playing-games</string>
-    <key>NSHighResolutionCapable</key><true/>
-    <key>NSHumanReadableCopyright</key><string>GPL-2.0-or-later. Based on bbport (deadinside28/bloodborne_pc) and shadPS4. No game files included.</string>
-</dict>
-</plist>
-EOF
-
 # Ad-hoc signatures, inside out (libraries, helpers, Python's binaries, then the bundle).
 codesign --force --sign - "$frameworks/"*.dylib
 find "$app/Contents/Resources/python" -type f \( -perm -u+x -o -name '*.so' -o -name '*.dylib' \) \
     -exec sh -c 'file -b "$1" | grep -q Mach-O && codesign --force --sign - "$1"' _ {} \;
-codesign --force --sign - "$macos/bb-probe" "$macos/bb-gpu-capabilities" "$macos/bash"
+codesign --force --sign - "$macos/bb-probe" "$macos/bb-gpu-capabilities" "$macos/bash" "$macos/bloodborne-launcher"
 codesign --force --sign - "$app"
 codesign --verify --deep --strict "$app"
 
@@ -128,6 +106,8 @@ Bloodborne for Apple Silicon ($version)
    signed with an Apple Developer ID). If macOS still refuses: System Settings → Privacy &
    Security → Open Anyway. Or, in Terminal: xattr -dr com.apple.quarantine /Applications/Bloodborne.app
 3. Choose your Bloodborne dump (the CUSA03173 folder, version 1.09) and press Play.
+   Graphics, controls (controller choice and button mapping), mods and patches are in the
+   launcher's tabs.
    The first start compiles the game's shaders and takes a few minutes.
 
 No game files are included. Saves, settings and logs:

@@ -1,0 +1,13 @@
+# Front end
+node_modules/
+dist/
+*.tsbuildinfo
+.vite/
+
+# Tauri / Rust
+src-tauri/target/
+src-tauri/gen/
+
+# Editors and macOS
+.DS_Store
+*.log

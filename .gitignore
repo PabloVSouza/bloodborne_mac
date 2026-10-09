@@ -29,3 +29,10 @@ patches.json
 /*.zip
 /docs/ISSUE_ACTION_PLAN_*.md
 /deps/
+
+# Editors and macOS
+.vscode/
+.DS_Store
+
+# The launcher's app icons (tracked despite *.png above)
+!launcher/app/src-tauri/icons/*.png

@@ -54,7 +54,10 @@ by the GPU. What was measured and changed, and what could still be gained:
 [**Download Bloodborne for Apple Silicon**](https://github.com/PabloVSouza/bloodborne_mac/releases/latest)
 (a DMG with `Bloodborne.app`, built by GitHub Actions from this repository). Drag it to
 Applications, open it, choose your game folder (CUSA03173, v1.09) and press **Play**. Nothing else
-is needed: the app carries its own runtime. The app is not signed with an Apple Developer ID, so
+is needed: the app carries its own runtime. Its launcher has tabs for graphics, controls
+(controller choice and button mapping for controller and keyboard), game options and effects,
+mods (load order), third-party patches, advanced options and the game's log, in English and
+Brazilian Portuguese. The app is not signed with an Apple Developer ID, so
 the first time right-click it and choose **Open** (or *System Settings → Privacy & Security →
 Open Anyway*).
 
@@ -81,13 +84,14 @@ BB_GAME_DIR=/path/to/CUSA03173 bash run.sh
 
 `build.sh` builds the native arm64 program on Apple Silicon (`BB_ARCH=x86_64` builds the older
 Rosetta 2 one); `bash packaging/macos.sh` then builds `Bloodborne.app` and its DMG into `dist/`
-(the Swift launcher in `launcher/macos/` needs Xcode). The first build compiles the dependencies (MoltenVK, SDL3, FFmpeg, ...) into
+(the launcher in `launcher/app`, Tauri with React, needs Node 22+ and Rust; see its
+[README](launcher/app/README.md)). The first build compiles the dependencies (MoltenVK, SDL3, FFmpeg, ...) into
 `deps/` and takes a while; the first launch, and the first launch after an update that changes
 the shader cache format, compiles the game's shaders.
 
 Saves and the shader cache go to `user/`, settings to `bbport.ini`. A gamepad is used through
-SDL3; there is a keyboard fallback. The GTK4 launcher from upstream
-(`bash launcher/bb-launcher.sh`) needs `brew install gtk4 libadwaita pygobject3`.
+SDL3; there is a keyboard fallback. Upstream's GTK4 launcher (`bash launcher/bb-launcher.sh`) also
+works with `brew install gtk4 libadwaita pygobject3`.
 
 **Recommended settings** (in-game menu or `bbport.ini`): FSR 3.1 with preset 1–2 and *Character
 motion vectors* off (`object_motion=0`, the macOS default). At 1080p output an upscaler preset

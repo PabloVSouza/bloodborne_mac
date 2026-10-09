@@ -1,0 +1,119 @@
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+@import "@fontsource-variable/inter";
+@import "@fontsource-variable/cinzel";
+
+@custom-variant dark (&:is(.dark *));
+
+/* The launcher has one theme: night and blood. shadcn's tokens map onto it. */
+:root {
+  --radius: 0.75rem;
+  --background: #07060a;
+  --foreground: #efe6d2;
+  --card: #15121c;
+  --card-foreground: #efe6d2;
+  --popover: #1a1622;
+  --popover-foreground: #efe6d2;
+  --primary: #b3262b;
+  --primary-foreground: #f6eedd;
+  --secondary: #1f1a29;
+  --secondary-foreground: #efe6d2;
+  --muted: #1f1a29;
+  --muted-foreground: #9a93a6;
+  --accent: #2b2438;
+  --accent-foreground: #efe6d2;
+  --destructive: #e25757;
+  --border: rgb(255 255 255 / 0.07);
+  --input: rgb(255 255 255 / 0.12);
+  --ring: #c53030;
+  --sidebar: #0d0b12;
+  --sidebar-foreground: #efe6d2;
+  --sidebar-primary: #b3262b;
+  --sidebar-primary-foreground: #f6eedd;
+  --sidebar-accent: rgb(161 29 34 / 0.18);
+  --sidebar-accent-foreground: #efe6d2;
+  --sidebar-border: rgb(255 255 255 / 0.06);
+  --sidebar-ring: #c53030;
+}
+
+@theme inline {
+  --font-sans: "Inter Variable", ui-sans-serif, system-ui, sans-serif;
+  --font-display: "Cinzel Variable", ui-serif, Georgia, serif;
+  --font-heading: var(--font-display);
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-night-950: #07060a;
+  --color-night-900: #0d0b12;
+  --color-night-800: #15121c;
+  --color-night-700: #1f1a29;
+  --color-night-600: #2b2438;
+  --color-blood-400: #e25757;
+  --color-blood-500: #c53030;
+  --color-blood-600: #a11d22;
+  --color-blood-700: #7a1418;
+  --color-parchment: #efe6d2;
+  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-md: calc(var(--radius) * 0.8);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) * 1.4);
+  --radius-2xl: calc(var(--radius) * 1.8);
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+  body {
+    @apply bg-background font-sans text-foreground antialiased select-none;
+  }
+  ::selection {
+    @apply bg-blood-600/60;
+  }
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-thumb {
+    @apply rounded-full bg-night-600;
+    border: 3px solid transparent;
+    background-clip: padding-box;
+  }
+}
+
+/* The window's title bar is hidden (overlay): these strips drag the window. */
+@utility drag {
+  -webkit-app-region: drag;
+}
+@utility no-drag {
+  -webkit-app-region: no-drag;
+}

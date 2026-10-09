@@ -1,6 +1,7 @@
-// Draws the app icon into an .iconset folder (packaging/macos.sh turns it into AppIcon.icns):
+// Draws the app icon into an .iconset folder: the source of the launcher's icons (src-tauri/icons).
 // a pale crescent moon over a dark red night, on the macOS rounded-square shape.
-//   swift launcher/macos/make_icon.swift OUT.iconset
+//   swift launcher/app/scripts/make_icon.swift OUT.iconset
+// then: npx tauri icon OUT.iconset/icon_512x512@2x.png (src-tauri/icons; keep the macOS ones).
 import AppKit
 
 func render(_ size: Int) -> Data {

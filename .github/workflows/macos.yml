@@ -41,6 +41,23 @@ jobs:
       - name: Tools
         run: brew install bash pkgconf glslang nasm cmake ninja
 
+      # The launcher (launcher/app): Tauri needs Node and Rust.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: launcher/app/package-lock.json
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: launcher/app/src-tauri
+
+      - name: Launcher checks
+        working-directory: launcher/app
+        run: |
+          npm ci
+          npm run check
+
       # The libraries build-deps.sh builds (MoltenVK, SDL3, FFmpeg, ...): ~1 h without the cache.
       - name: Dependency cache
         uses: actions/cache@v4
