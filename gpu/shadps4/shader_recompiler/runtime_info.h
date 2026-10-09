@@ -89,6 +89,8 @@ struct MotionVectors {
     /// the position array (vec4 per vertex; element 0 is scratch), fixed for the session.
     static inline u64 params_address = 0;
     static inline u64 positions_address = 0;
+    /// bbport: entries in the positions buffer; every access is bounded by it.
+    static inline u32 positions_count = 0;
     static constexpr u32 FlagStore = 1;
     static constexpr u32 FlagLoad = 2;
 };

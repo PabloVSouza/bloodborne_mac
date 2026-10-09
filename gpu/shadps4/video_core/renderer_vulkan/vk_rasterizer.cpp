@@ -1375,6 +1375,10 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
         scene_started = false;
         camera_motion->OnDisplayPass(cb_descs[0].first);
         if (upscaler->OnFrameStart()) {
+            // bbport: the upscaler switched on or off, or its size changed (rare): no frame
+            // still in flight may use the motion history being restarted (switching it at
+            // run time with object motion on lost the device on MoltenVK).
+            scheduler.Finish();
             object_motion->InvalidateHistory();
             camera_motion->InvalidateHistory();
         }
@@ -1481,7 +1485,11 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
     push_data.xoffset *= target_scale[0];
     push_data.yscale *= target_scale[1];
     push_data.yoffset *= target_scale[1];
-    if (motion_draw && motion_geometry) {
+    // bbport: no motion history while the upscaler is off (nothing reads it; switching the
+    // upscaler off at run time with it still running lost the device on MoltenVK).
+    // (Reset for every draw: a motion draw without vertex buffers kept the last draw's.)
+    push_data.motion_param = 0;
+    if (motion_draw && motion_geometry && upscaler->Active()) {
         BB_SECTION(Motion);
         const auto& vs = pipeline->GetStage(Shader::SwStage::Vertex);
         const auto [base_vertex, first_instance] =

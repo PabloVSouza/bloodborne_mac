@@ -76,6 +76,7 @@ ObjectMotion::ObjectMotion(const Instance& instance_, Scheduler& scheduler_)
     std::memset(params_mapped, 0, 32);
     Shader::MotionVectors::params_address = params_address;
     Shader::MotionVectors::positions_address = positions_address;
+    Shader::MotionVectors::positions_count = 1 + 2 * PositionsPerFrame;
     enabled = true;
     std::printf("Object motion: on (%u vertices per frame)\n", PositionsPerFrame);
 }

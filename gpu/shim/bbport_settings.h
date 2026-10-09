@@ -52,7 +52,13 @@ struct Values {
     std::atomic<float> sharpness{0.3f};
     std::atomic<bool> jitter{true};
     std::atomic<bool> reactive{false};
+    /// Off by default on macOS: the per-vertex position history roughly doubled the G-buffer's
+    /// vertex work on Apple GPUs (FSR at 720p: 36 FPS with it, 42 without, M3 Pro).
+#ifdef __APPLE__
+    std::atomic<bool> object_motion{false};
+#else
     std::atomic<bool> object_motion{true};
+#endif
     std::atomic<float> reactive_scale{1.0f};
     std::atomic<float> reactive_threshold{0.2f};
     std::atomic<float> reactive_max{0.9f};
@@ -76,7 +82,11 @@ struct Values {
     /// Startup settings for the explicit BB_RENDER_RES compatibility patch only.
     int startup_preset = NativeAA;
     int startup_upscaler = UpscalerFsr3;
+#ifdef __APPLE__
+    bool startup_object_motion = false;
+#else
     bool startup_object_motion = true;
+#endif
     bool startup_effects[EffectCount]{};
     int startup_model_lod = 0;
     int startup_output_res = OutputDefault;

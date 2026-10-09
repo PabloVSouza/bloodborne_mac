@@ -254,6 +254,12 @@ GraphicsPipeline::GraphicsPipeline(
                                     vk::FormatFeatureFlagBits2::eDepthStencilAttachment);
     std::array<vk::Format, Shader::IR::NumRenderTargets> color_formats;
     for (s32 i = 0; i < key.num_color_attachments; ++i) {
+        // bbport: a slot the pass leaves empty (the motion vector target is slot 7 after a
+        // 6-target G-buffer) has no format: Metal requires the pipeline's to be invalid there.
+        if ((key.mrt_mask & (1u << i)) == 0) {
+            color_formats[i] = vk::Format::eUndefined;
+            continue;
+        }
         const auto& col_buf = key.color_buffers[i];
         const auto format = LiverpoolToVK::SurfaceFormat(col_buf.data_format, col_buf.num_format);
         const auto color_format =

@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <chrono>
+#include <thread>
 #include <algorithm>
 #include <array>
 #include <atomic>
@@ -273,6 +275,10 @@ void Report(const char* title, const char* where);
 }
 
 void ReportDeviceLost(const char* where) {
+    // bbport: MoltenVK logs the failed Metal command buffer and its reason from its completion
+    // handler, which can run after this thread saw the lost device: give it time before the
+    // caller stops the process.
+    std::this_thread::sleep_for(std::chrono::seconds(1));
     static std::atomic_flag reported = ATOMIC_FLAG_INIT;
     if (enabled && !reported.test_and_set()) {
         Report("at device lost", where);

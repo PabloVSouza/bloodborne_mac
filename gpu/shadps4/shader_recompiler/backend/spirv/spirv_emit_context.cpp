@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <cstdlib>
 #include "common/assert.h"
 #include "common/div_ceil.h"
 #include "shader_recompiler/backend/spirv/spirv_emit_context.h"
@@ -17,6 +18,16 @@
 #include <string_view>
 
 namespace Shader::Backend::SPIRV {
+
+/// bbport BB_MOTION_LITE=1 (measurement only): motion pipelines without the vertex stage's
+/// motion outputs; the fragment stage writes no motion.
+bool MotionLite() {
+    static const bool lite = [] {
+        const char* env = std::getenv("BB_MOTION_LITE");
+        return env && env[0] == '1';
+    }();
+    return lite;
+}
 namespace {
 
 std::string_view StageName(HwStage stage) {
@@ -644,7 +655,7 @@ void EmitContext::DefineOutputs() {
                 ++num_attrs;
             }
 
-            if (VertexMotion()) {
+            if (VertexMotion() && !MotionLite()) {
                 motion_out_cur = DefineOutput(F32[4], MotionVectors::CurrentLocation);
                 motion_out_prev = DefineOutput(F32[4], MotionVectors::PreviousLocation);
                 Name(motion_out_cur, "motion_cur");
@@ -745,8 +756,10 @@ void EmitContext::DefineOutputs() {
         }
         if (FragmentMotion() && !Sirit::ValidId(frag_outputs[MotionVectors::Output].id)) {
             motion_frag_out = DefineOutput(F32[4], MotionVectors::Output);
-            motion_in_cur = DefineInput(F32[4], MotionVectors::CurrentLocation);
-            motion_in_prev = DefineInput(F32[4], MotionVectors::PreviousLocation);
+            if (!MotionLite()) {
+                motion_in_cur = DefineInput(F32[4], MotionVectors::CurrentLocation);
+                motion_in_prev = DefineInput(F32[4], MotionVectors::PreviousLocation);
+            }
             Name(motion_frag_out, "motion_vector");
         }
         // Dual source blending allows at most 2 render targets, one for each source.

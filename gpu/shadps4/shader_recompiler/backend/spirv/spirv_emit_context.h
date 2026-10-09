@@ -14,6 +14,8 @@
 
 namespace Shader::Backend::SPIRV {
 
+bool MotionLite();
+
 using Sirit::Id;
 
 struct VectorIds {

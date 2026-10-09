@@ -44,6 +44,8 @@ public:
                      CameraMotion& camera_motion, SceneTargets& scene_targets);
     ~TemporalUpscaler();
 
+    /// On (a temporal upscaler is selected and working), not only available.
+    [[nodiscard]] bool Active() const;
     [[nodiscard]] bool Enabled() const noexcept {
         return enabled;
     }
@@ -156,7 +158,6 @@ private:
     // The scene color is drawn into a reduced SceneTargets proxy (live presets).
     [[nodiscard]] bool ReducedScene(const VideoCore::Image& color) const;
     /// Available and switched on (menu setting, toggle 1 << 24).
-    [[nodiscard]] bool Active() const;
     [[nodiscard]] bool ReactiveOn() const;
     bool EnsureResources(u32 width, u32 height, u32 out_width, u32 out_height, bool hdr);
     void CreatePipelines();

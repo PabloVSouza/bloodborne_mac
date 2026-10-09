@@ -1242,6 +1242,12 @@ void TextureCache::GarbageCollectSamplers() {
         }
         --num_deletions;
         const size_t lru_id = samplers.at(hash).lru_id;
+        // bbport: destroyed once the GPU is past the work recorded so far. The GC runs per
+        // submission (~9 a frame), so 16 ticks are ~2 frames, and recorded commands may still
+        // use the sampler: MoltenVK lost the device (Invalid Resource) after upscaler
+        // switches, each of which brings a new sampler set (another LOD bias).
+        scheduler.DeferOperation(
+            [sampler = std::make_shared<Sampler>(std::move(samplers.at(hash)))] {});
         samplers.erase(hash);
         sampler_lru_cache.Free(lru_id);
         return false;

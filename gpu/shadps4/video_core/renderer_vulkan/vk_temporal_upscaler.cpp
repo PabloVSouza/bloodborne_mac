@@ -1366,6 +1366,8 @@ void TemporalUpscaler::EnsureUiResources(u32 w, u32 h, vk::Format color, vk::For
     if (!new_color && !new_depth) {
         return;
     }
+    std::printf("Upscaler: UI images %ux%u color %d depth %d (new color %d, depth %d)\n", w, h,
+                int(color), int(depth), int(new_color), int(new_depth));
     scheduler.Finish();
     const auto device = instance.GetDevice();
     const auto allocator = instance.GetAllocator();
@@ -1844,6 +1846,9 @@ bool TemporalUpscaler::RedirectColor(VideoCore::ImageId color,
     }
     if (!display.image || display.format != image.info.pixel_format ||
         display.width != ui_width || display.height != ui_height) {
+        std::printf("Upscaler: display image %#llx %ux%u format %d\n",
+                    static_cast<unsigned long long>(address), ui_width, ui_height,
+                    int(image.info.pixel_format));
         const auto device = instance.GetDevice();
         scheduler.Finish();
         display.views.clear();

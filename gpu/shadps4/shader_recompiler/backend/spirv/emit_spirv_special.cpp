@@ -112,8 +112,18 @@ static void EmitVertexMotion(EmitContext& ctx) {
             ctx.OpINotEqual(bool_type, ctx.OpBitwiseAnd(u32_type, flags, ctx.ConstU32(bit)),
                             ctx.u32_zero_value));
     };
-    const Id do_store = flag(MotionVectors::FlagStore);
-    const Id do_load = flag(MotionVectors::FlagLoad);
+    // bbport: each access also bounded by the positions buffer (a GPU fault there is a lost
+    // device; the history's offsets keep them inside, this guards against stale parameters).
+    const Id count = ctx.ConstU32(MotionVectors::positions_count);
+    const auto inside = [&](Id base) {
+        const Id index = ctx.OpIAdd(u32_type, base, slot);
+        return ctx.OpLogicalAnd(bool_type, ctx.OpULessThan(bool_type, index, count),
+                                ctx.OpUGreaterThanEqual(bool_type, index, base));
+    };
+    const Id do_store =
+        ctx.OpLogicalAnd(bool_type, flag(MotionVectors::FlagStore), inside(store_base));
+    const Id do_load =
+        ctx.OpLogicalAnd(bool_type, flag(MotionVectors::FlagLoad), inside(load_base));
     const Id store_label = ctx.OpLabel();
     const Id store_merge = ctx.OpLabel();
     ctx.OpSelectionMerge(store_merge, spv::SelectionControlMask::MaskNone);
@@ -167,6 +177,14 @@ static void EmitVertexMotion(EmitContext& ctx) {
 // Screen-space motion (previous minus current, pixels) through the viewport scale; z = valid.
 static void EmitFragmentMotion(EmitContext& ctx) {
     const Id f32_type = ctx.F32[1];
+    if (!Sirit::ValidId(ctx.motion_in_cur)) {
+        const Id zero = ctx.Constant(f32_type, 0.0f);
+        const Id depth = ctx.OpCompositeExtract(f32_type,
+                                                ctx.OpLoad(ctx.F32[4], ctx.frag_coord), 2u);
+        ctx.OpStore(ctx.motion_frag_out, ctx.OpCompositeConstruct(
+                                             ctx.F32[4], std::array<Id, 4>{zero, zero, zero, depth}));
+        return;
+    }
     const Id current = ctx.OpLoad(ctx.F32[4], ctx.motion_in_cur);
     const Id previous = ctx.OpLoad(ctx.F32[4], ctx.motion_in_prev);
     const auto push = [&](u32 index) {
