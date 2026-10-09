@@ -134,6 +134,16 @@ target_compile_definitions(bbgpu PRIVATE IMGUI_IMPL_VULKAN_NO_PROTOTYPES
     BB_FONT_PATH="${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/DejaVuSans.ttf")
 set_source_files_properties(shim/bbport_overlay.cpp PROPERTIES
     OBJECT_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/third_party/fonts/DejaVuSans.ttf)
+# The in-game menu's texts (shim/locales/*.json) as a C++ table for shim/bbport_text.cpp.
+find_package(Python3 REQUIRED COMPONENTS Interpreter)
+file(GLOB BB_TEXT_LOCALES CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shim/locales/*.json)
+set(BB_TEXT_DIR ${CMAKE_CURRENT_BINARY_DIR}/generated)
+add_custom_command(OUTPUT ${BB_TEXT_DIR}/bbport_text_data.inc
+    COMMAND ${CMAKE_COMMAND} -E make_directory ${BB_TEXT_DIR}
+    COMMAND Python3::Interpreter ${CMAKE_CURRENT_SOURCE_DIR}/shim/locales/gen_text.py ${BB_TEXT_DIR}/bbport_text_data.inc
+    DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/shim/locales/gen_text.py ${BB_TEXT_LOCALES} VERBATIM)
+target_sources(bbgpu PRIVATE ${BB_TEXT_DIR}/bbport_text_data.inc)
+target_include_directories(bbgpu PRIVATE ${BB_TEXT_DIR})
 target_include_directories(bbgpu PRIVATE shim shadps4 ${SHADER_INCLUDE} third_party/gcn/include third_party/half/include ../src)
 target_compile_definitions(bbgpu PRIVATE BOOST_ASIO_STANDALONE NDEBUG)
 target_compile_options(bbgpu PRIVATE -Wno-deprecated-declarations -Wno-missing-field-initializers)

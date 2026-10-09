@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Jaag op de nacht", "subtitle": "Bloodborne, native op Apple Silicon.", "gameFolder": "Spel",
-    "gameFolderHint": "Jouw kopie van Bloodborne: de map CUSA03173, versie 1.09.", "checking": "Spel controleren…", "ready": "Klaar om te spelen",
-    "noFolder": "Kies de spelmap (CUSA03173).", "summary": "Overzicht", "upscaler": "Upscaler", "renderSize": "Rendert op {{size}}",
+    "gameFolderHint": "Jouw kopie van Bloodborne (elke regio) met update 1.09 erin samengevoegd.", "checking": "Spel controleren…", "ready": "Klaar om te spelen",
+    "noFolder": "Kies de spelmap.", "folder": "Spelmap", "edition": "{{id}} · versie {{version}}", "region": { "america": "Amerika", "europe": "Europa", "japan": "Japan", "asia": "Azië", "unknown": "Onbekende regio" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Inbegrepen", "dlcMissing": "Niet inbegrepen", "dlcMissingHint": "Deze editie verkoopt The Old Hunters als extra content, die de port nog niet laadt.", "summary": "Overzicht", "upscaler": "Upscaler", "renderSize": "Rendert op {{size}}",
     "frameRate": "Framerate", "controller": "Controller", "mods": "Mods",
     "modsActive": "{{count}} actief", "modsActive_one": "{{count}} actief", "modsActive_other": "{{count}} actief", "modsOff": "Uit",
     "firstStart": "De eerste start compileert de shaders van het spel en duurt daardoor een paar minuten. Latere starts zijn snel.",
@@ -23,7 +23,7 @@
     "openData": "Opslagen en gegevens"
   },
   "graphics": {
-    "title": "Graphics", "subtitle": "Gedeeld met het menu in het spel (Insert of L3 + R3).", "display": "Beeld",
+    "title": "Graphics", "subtitle": "Gedeeld met het menu in het spel (F1 of L3 + R3).", "display": "Beeld",
     "outputRes": "Uitvoerresolutie", "outputResHint": "De grootte van het beeld op het scherm. De upscaler vult het.", "fullscreen": "Volledig scherm",
     "presentMode": "Beeldweergave", "showFps": "FPS tonen", "upscaling": "Upscaling",
     "upscalingHint": "Het spel rendert onder de uitvoerresolutie en FSR reconstrueert het beeld: de grootste prestatiewinst op Apple Silicon.",

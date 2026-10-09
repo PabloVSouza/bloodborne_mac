@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "狩猎长夜", "subtitle": "在 Apple Silicon 上原生运行的 Bloodborne。", "gameFolder": "游戏",
-    "gameFolderHint": "你的 Bloodborne 转储：CUSA03173 文件夹，版本 1.09。", "checking": "正在检查游戏…", "ready": "可以开始游戏",
-    "noFolder": "请选择游戏文件夹（CUSA03173）。", "summary": "概览", "upscaler": "超分辨率", "renderSize": "以 {{size}} 渲染",
+    "gameFolderHint": "你的 Bloodborne 转储（任意地区），已合并 1.09 更新。", "checking": "正在检查游戏…", "ready": "可以开始游戏",
+    "noFolder": "请选择游戏文件夹。", "folder": "游戏文件夹", "edition": "{{id}} · 版本 {{version}}", "region": { "america": "美洲", "europe": "欧洲", "japan": "日本", "asia": "亚洲", "unknown": "未知地区" }, "oldHunters": "The Old Hunters", "dlcIncluded": "已包含", "dlcMissing": "未包含", "dlcMissingHint": "此版本将 The Old Hunters 作为追加内容出售，移植版暂不加载追加内容。", "summary": "概览", "upscaler": "超分辨率", "renderSize": "以 {{size}} 渲染",
     "frameRate": "帧率", "controller": "手柄", "mods": "模组",
     "modsActive": "已启用 {{count}} 个", "modsActive_other": "已启用 {{count}} 个", "modsOff": "已关闭",
     "firstStart": "首次启动会编译游戏的着色器，因此需要几分钟。之后的启动会很快。",
@@ -23,7 +23,7 @@
     "openData": "存档与数据"
   },
   "graphics": {
-    "title": "图形", "subtitle": "与游戏内菜单（Insert 或 L3 + R3）共享。", "display": "显示",
+    "title": "图形", "subtitle": "与游戏内菜单（F1 或 L3 + R3）共享。", "display": "显示",
     "outputRes": "输出分辨率", "outputResHint": "屏幕上图像的尺寸，由超分辨率填满。", "fullscreen": "全屏",
     "presentMode": "帧呈现方式", "showFps": "显示 FPS", "upscaling": "超分辨率",
     "upscalingHint": "游戏以低于输出分辨率的分辨率渲染，由 FSR 重建图像：这是在 Apple Silicon 上提升性能最大的设置。",

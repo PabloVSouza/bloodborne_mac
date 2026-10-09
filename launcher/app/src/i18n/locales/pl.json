@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Zapoluj na noc", "subtitle": "Bloodborne natywnie na Apple Silicon.", "gameFolder": "Gra",
-    "gameFolderHint": "Twoja kopia Bloodborne: folder CUSA03173, wersja 1.09.", "checking": "Sprawdzanie gry…", "ready": "Gotowa do gry",
-    "noFolder": "Wybierz folder gry (CUSA03173).", "summary": "W skrócie", "upscaler": "Skalowanie", "renderSize": "Renderuje w {{size}}",
+    "gameFolderHint": "Twoja kopia Bloodborne (dowolny region) z wgraną aktualizacją 1.09.", "checking": "Sprawdzanie gry…", "ready": "Gotowa do gry",
+    "noFolder": "Wybierz folder gry.", "folder": "Folder gry", "edition": "{{id}} · wersja {{version}}", "region": { "america": "Ameryka", "europe": "Europa", "japan": "Japonia", "asia": "Azja", "unknown": "Nieznany region" }, "oldHunters": "The Old Hunters", "dlcIncluded": "W zestawie", "dlcMissing": "Brak", "dlcMissingHint": "Ta edycja sprzedaje The Old Hunters jako dodatek, którego port jeszcze nie wczytuje.", "summary": "W skrócie", "upscaler": "Skalowanie", "renderSize": "Renderuje w {{size}}",
     "frameRate": "Liczba klatek", "controller": "Kontroler", "mods": "Mody",
     "modsActive": "{{count}} aktywnych", "modsActive_one": "{{count}} aktywny", "modsActive_few": "{{count}} aktywne", "modsActive_many": "{{count}} aktywnych", "modsActive_other": "{{count}} aktywnych", "modsOff": "Wyłączone",
     "firstStart": "Pierwsze uruchomienie kompiluje shadery gry, więc trwa kilka minut. Kolejne są szybkie.",
@@ -23,7 +23,7 @@
     "openData": "Zapisy i dane"
   },
   "graphics": {
-    "title": "Grafika", "subtitle": "Wspólne z menu w grze (Insert lub L3 + R3).", "display": "Ekran",
+    "title": "Grafika", "subtitle": "Wspólne z menu w grze (F1 lub L3 + R3).", "display": "Ekran",
     "outputRes": "Rozdzielczość wyjściowa", "outputResHint": "Rozmiar obrazu na ekranie. Skalowanie go wypełnia.", "fullscreen": "Pełny ekran",
     "presentMode": "Wyświetlanie klatek", "showFps": "Pokaż FPS", "upscaling": "Skalowanie",
     "upscalingHint": "Gra renderuje poniżej rozdzielczości wyjściowej, a FSR odtwarza obraz: największy zysk wydajności na Apple Silicon.",

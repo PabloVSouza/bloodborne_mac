@@ -290,12 +290,11 @@ fn save_ini(state: State<AppState>, values: BTreeMap<String, Option<String>>) ->
 }
 
 #[tauri::command]
-async fn check_game(state: State<'_, AppState>, dir: String) -> Result<Option<String>, String> {
+async fn check_game(state: State<'_, AppState>, dir: String) -> Result<Value, String> {
     if dir.is_empty() {
-        return Ok(Some("Choose the game folder (CUSA03173).".into()));
+        return Ok(json!({"problem": "Choose the game folder.", "game": null}));
     }
-    let v = api(&state.paths, &["check", &expand(&dir).to_string_lossy()])?;
-    Ok(v.get("problem").and_then(Value::as_str).map(str::to_string))
+    api(&state.paths, &["check", &expand(&dir).to_string_lossy()])
 }
 
 #[tauri::command]
@@ -416,11 +415,10 @@ fn game_environment(p: &Paths, s: &Map<String, Value>) -> Vec<(String, String)> 
     set("BB_PATCHES_DIR", patches_dir(p, s).to_string_lossy().into());
     set("BB_PATCHES_CONFIG", p.data.join("patches.json").to_string_lossy().into());
     set("BB_LANGUAGE", str_setting(s, "language"));
-    // The in-game menu has English and Russian.
+    // The in-game menu follows the launcher's language; the game matches regional codes the
+    // way the launcher does (gpu/shim/bbport_text.cpp).
     let ui = str_setting(s, "ui_language");
-    let system_ru = std::env::var("LANG").map(|l| l.starts_with("ru")).unwrap_or(false);
-    let ru = ui.starts_with("ru") || (ui.is_empty() && system_ru);
-    set("BB_UI_LANGUAGE", (if ru { "ru" } else { "en" }).into());
+    set("BB_UI_LANGUAGE", if ui.is_empty() { system_language() } else { ui });
     set("BB_FULLSCREEN", (if bool_setting(s, "fullscreen") { "1" } else { "0" }).into());
     set("BB_PRESENT_MODE", str_setting(s, "present_mode"));
     for (key, var) in [("gamepad", "BB_GAMEPAD"), ("draw_pipe", "BB_DRAW_PIPE"), ("readbacks", "BB_READBACKS"),
@@ -457,6 +455,24 @@ fn game_environment(p: &Paths, s: &Map<String, Value>) -> Vec<(String, String)> 
         }
     }
     env
+}
+
+/// The system's preferred language ("pt-BR"): an app started from Finder has no LANG.
+fn system_language() -> String {
+    Command::new("defaults")
+        .args(["read", "-g", "AppleLanguages"])
+        .output()
+        .ok()
+        .and_then(|o| {
+            // "(\n    \"pt-BR\",\n    en\n)": the first item, quoted or not
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .map(|l| l.trim().trim_end_matches(',').trim_matches('"'))
+                .find(|l| !l.is_empty() && *l != "(" && *l != ")")
+                .map(str::to_string)
+        })
+        .or_else(|| std::env::var("LANG").ok())
+        .unwrap_or_default()
 }
 
 #[tauri::command]

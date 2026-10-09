@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Jakt på natten", "subtitle": "Bloodborne, nativt på Apple Silicon.", "gameFolder": "Spill",
-    "gameFolderHint": "Din kopi av Bloodborne: mappen CUSA03173, versjon 1.09.", "checking": "Kontrollerer spillet…", "ready": "Klar til å spille",
-    "noFolder": "Velg spillmappen (CUSA03173).", "summary": "Oversikt", "upscaler": "Oppskalering", "renderSize": "Gjengir i {{size}}",
+    "gameFolderHint": "Din kopi av Bloodborne (hvilken som helst region) med oppdatering 1.09 lagt inn.", "checking": "Kontrollerer spillet…", "ready": "Klar til å spille",
+    "noFolder": "Velg spillmappen.", "folder": "Spillmappe", "edition": "{{id}} · versjon {{version}}", "region": { "america": "Amerika", "europe": "Europa", "japan": "Japan", "asia": "Asia", "unknown": "Ukjent region" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Inkludert", "dlcMissing": "Ikke inkludert", "dlcMissingHint": "Denne utgaven selger The Old Hunters som tilleggsinnhold, som porten ikke laster ennå.", "summary": "Oversikt", "upscaler": "Oppskalering", "renderSize": "Gjengir i {{size}}",
     "frameRate": "Bildefrekvens", "controller": "Kontroller", "mods": "Modder",
     "modsActive": "{{count}} aktive", "modsActive_one": "{{count}} aktiv", "modsActive_other": "{{count}} aktive", "modsOff": "Av",
     "firstStart": "Første oppstart kompilerer spillets shadere og tar derfor noen minutter. Senere oppstarter går raskt.",
@@ -23,7 +23,7 @@
     "openData": "Lagrede spill og data"
   },
   "graphics": {
-    "title": "Grafikk", "subtitle": "Delt med menyen i spillet (Insert eller L3 + R3).", "display": "Skjerm",
+    "title": "Grafikk", "subtitle": "Delt med menyen i spillet (F1 eller L3 + R3).", "display": "Skjerm",
     "outputRes": "Utdataoppløsning", "outputResHint": "Bildets størrelse på skjermen. Oppskaleringen fyller det.", "fullscreen": "Fullskjerm",
     "presentMode": "Bildevisning", "showFps": "Vis FPS", "upscaling": "Oppskalering",
     "upscalingHint": "Spillet gjengir under utdataoppløsningen, og FSR gjenskaper bildet: den største ytelsesgevinsten på Apple Silicon.",

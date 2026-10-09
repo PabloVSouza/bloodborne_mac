@@ -105,7 +105,7 @@ Bloodborne for Apple Silicon ($version)
 2. The first time, right-click Bloodborne and choose Open, then Open again (the app is not
    signed with an Apple Developer ID). If macOS still refuses: System Settings → Privacy &
    Security → Open Anyway. Or, in Terminal: xattr -dr com.apple.quarantine /Applications/Bloodborne.app
-3. Choose your Bloodborne dump (the CUSA03173 folder, version 1.09) and press Play.
+3. Choose your Bloodborne dump (version 1.09; any edition with the same executable) and press Play.
    Graphics, controls (controller choice and button mapping), mods and patches are in the
    launcher's tabs.
    The first start compiles the game's shaders and takes a few minutes.

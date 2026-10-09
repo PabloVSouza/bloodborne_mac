@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Jaga natten", "subtitle": "Bloodborne, nativt på Apple Silicon.", "gameFolder": "Spel",
-    "gameFolderHint": "Din kopia av Bloodborne: mappen CUSA03173, version 1.09.", "checking": "Kontrollerar spelet…", "ready": "Redo att spela",
-    "noFolder": "Välj spelmappen (CUSA03173).", "summary": "Översikt", "upscaler": "Uppskalare", "renderSize": "Renderar i {{size}}",
+    "gameFolderHint": "Din kopia av Bloodborne (valfri region) med uppdatering 1.09 inlagd.", "checking": "Kontrollerar spelet…", "ready": "Redo att spela",
+    "noFolder": "Välj spelmappen.", "folder": "Spelmapp", "edition": "{{id}} · version {{version}}", "region": { "america": "Amerika", "europe": "Europa", "japan": "Japan", "asia": "Asien", "unknown": "Okänd region" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Ingår", "dlcMissing": "Ingår inte", "dlcMissingHint": "Den här utgåvan säljer The Old Hunters som tilläggsinnehåll, som porten inte laddar än.", "summary": "Översikt", "upscaler": "Uppskalare", "renderSize": "Renderar i {{size}}",
     "frameRate": "Bildfrekvens", "controller": "Handkontroll", "mods": "Moddar",
     "modsActive": "{{count}} aktiva", "modsActive_one": "{{count}} aktiv", "modsActive_other": "{{count}} aktiva", "modsOff": "Av",
     "firstStart": "Första starten kompilerar spelets shaders och tar därför några minuter. Senare starter går fort.",
@@ -23,7 +23,7 @@
     "openData": "Sparfiler och data"
   },
   "graphics": {
-    "title": "Grafik", "subtitle": "Delas med menyn i spelet (Insert eller L3 + R3).", "display": "Skärm",
+    "title": "Grafik", "subtitle": "Delas med menyn i spelet (F1 eller L3 + R3).", "display": "Skärm",
     "outputRes": "Utdataupplösning", "outputResHint": "Bildens storlek på skärmen. Uppskalaren fyller den.", "fullscreen": "Helskärm",
     "presentMode": "Bildvisning", "showFps": "Visa FPS", "upscaling": "Uppskalning",
     "upscalingHint": "Spelet renderar under utdataupplösningen och FSR återskapar bilden: den största prestandavinsten på Apple Silicon.",

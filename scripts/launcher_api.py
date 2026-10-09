@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 # SPDX-License-Identifier: GPL-2.0-or-later
 """JSON answers for the macOS launcher (launcher/app), from the same code run.sh uses.
-  launcher_api.py check GAME_DIR              {"problem": text or null}
+  launcher_api.py check GAME_DIR              {"problem": text or null, "game": {"title_id",
+                                               "title", "version", "region", "old_hunters"}}
   launcher_api.py mods MODS_DIR CONFIG        {"mods": [{"name", "enabled"}]} in load order
   launcher_api.py patches PATCHES_DIR CONFIG  {"patches": [{"key", "name", "file", "author",
                                                "note", "default", "enabled"}]}
@@ -26,9 +27,12 @@ def read_json(path):
 
 def check(game_dir):
     path = Path(game_dir).expanduser()
+    game = game_check.describe(path)
     if not (path / "eboot.bin").is_file():
-        return {"problem": "No eboot.bin in this folder: choose the CUSA03173 folder of your dump."}
-    return {"problem": game_check.problem(path)}
+        return {"problem": "No eboot.bin in this folder: choose the folder of your Bloodborne dump.",
+                "game": game}
+    found = game_check.problem(path)
+    return {"problem": game_check.explain(*found) if found else None, "game": game}
 
 
 def mods(directory, config):

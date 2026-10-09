@@ -27,6 +27,19 @@ export type Settings = {
   ui_language: string;
 };
 
+/** The game folder's edition, from its sce_sys/param.sfo (scripts/game_check.py describe). */
+export type GameEdition = {
+  title_id: string;
+  title: string;
+  version: string;
+  region: "america" | "europe" | "japan" | "asia" | "unknown";
+  /** A Game of the Year edition: The Old Hunters is part of the game. */
+  old_hunters: boolean;
+};
+
+/** The game check: why the folder cannot start (null when it can) and its edition. */
+export type GameCheck = { problem: string | null; game: GameEdition | null };
+
 /** bbport.ini: the port's settings, shared with the in-game menu. */
 export type Ini = Record<string, string>;
 

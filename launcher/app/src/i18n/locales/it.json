@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Caccia la notte", "subtitle": "Bloodborne, nativo su Apple Silicon.", "gameFolder": "Gioco",
-    "gameFolderHint": "La tua copia di Bloodborne: la cartella CUSA03173, versione 1.09.", "checking": "Verifica del gioco…", "ready": "Pronto per giocare",
-    "noFolder": "Scegli la cartella del gioco (CUSA03173).", "summary": "In breve", "upscaler": "Upscaler", "renderSize": "Renderizza a {{size}}",
+    "gameFolderHint": "La tua copia di Bloodborne (qualsiasi regione) con l’aggiornamento 1.09 integrato.", "checking": "Verifica del gioco…", "ready": "Pronto per giocare",
+    "noFolder": "Scegli la cartella del gioco.", "folder": "Cartella del gioco", "edition": "{{id}} · versione {{version}}", "region": { "america": "Americhe", "europe": "Europa", "japan": "Giappone", "asia": "Asia", "unknown": "Regione sconosciuta" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Incluso", "dlcMissing": "Non incluso", "dlcMissingHint": "Questa edizione vende The Old Hunters come contenuto aggiuntivo, che il port non carica ancora.", "summary": "In breve", "upscaler": "Upscaler", "renderSize": "Renderizza a {{size}}",
     "frameRate": "Frequenza fotogrammi", "controller": "Controller", "mods": "Mod",
     "modsActive": "{{count}} attive", "modsActive_one": "{{count}} attiva", "modsActive_other": "{{count}} attive", "modsOff": "Disattivate",
     "firstStart": "Il primo avvio compila gli shader del gioco e richiede qualche minuto. Gli avvii successivi sono rapidi.",
@@ -23,7 +23,7 @@
     "openData": "Salvataggi e dati"
   },
   "graphics": {
-    "title": "Grafica", "subtitle": "Condivise con il menu del gioco (Ins o L3 + R3).", "display": "Schermo",
+    "title": "Grafica", "subtitle": "Condivise con il menu del gioco (F1 o L3 + R3).", "display": "Schermo",
     "outputRes": "Risoluzione di uscita", "outputResHint": "La dimensione dell'immagine sullo schermo. L'upscaler la riempie.", "fullscreen": "Schermo intero",
     "presentMode": "Presentazione dei fotogrammi", "showFps": "Mostra FPS", "upscaling": "Upscaling",
     "upscalingHint": "Il gioco renderizza sotto la risoluzione di uscita e FSR ricostruisce l'immagine: il maggior guadagno di prestazioni su Apple Silicon.",

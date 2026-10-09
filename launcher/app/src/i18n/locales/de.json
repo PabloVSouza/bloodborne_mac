@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Jage die Nacht", "subtitle": "Bloodborne, nativ auf Apple Silicon.", "gameFolder": "Spiel",
-    "gameFolderHint": "Deine Kopie von Bloodborne: der Ordner CUSA03173, Version 1.09.", "checking": "Spiel wird geprüft…", "ready": "Bereit zum Spielen",
-    "noFolder": "Wähle den Spielordner (CUSA03173).", "summary": "Überblick", "upscaler": "Upscaler", "renderSize": "Rendert in {{size}}",
+    "gameFolderHint": "Deine Kopie von Bloodborne (jede Region) mit eingespieltem Update 1.09.", "checking": "Spiel wird geprüft…", "ready": "Bereit zum Spielen",
+    "noFolder": "Wähle den Spielordner.", "folder": "Spielordner", "edition": "{{id}} · Version {{version}}", "region": { "america": "Amerika", "europe": "Europa", "japan": "Japan", "asia": "Asien", "unknown": "Unbekannte Region" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Enthalten", "dlcMissing": "Nicht enthalten", "dlcMissingHint": "Diese Edition verkauft The Old Hunters als Zusatzinhalt, den die Portierung noch nicht lädt.", "summary": "Überblick", "upscaler": "Upscaler", "renderSize": "Rendert in {{size}}",
     "frameRate": "Bildrate", "controller": "Controller", "mods": "Mods",
     "modsActive": "{{count}} aktiv", "modsActive_one": "{{count}} aktiv", "modsActive_other": "{{count}} aktiv", "modsOff": "Aus",
     "firstStart": "Beim ersten Start werden die Shader des Spiels kompiliert, das dauert einige Minuten. Spätere Starts sind schnell.",
@@ -23,7 +23,7 @@
     "openData": "Spielstände und Daten"
   },
   "graphics": {
-    "title": "Grafik", "subtitle": "Gemeinsam mit dem Menü im Spiel (Einfg oder L3 + R3).", "display": "Anzeige",
+    "title": "Grafik", "subtitle": "Gemeinsam mit dem Menü im Spiel (F1 oder L3 + R3).", "display": "Anzeige",
     "outputRes": "Ausgabeauflösung", "outputResHint": "Die Größe des Bildes auf dem Bildschirm. Der Upscaler füllt sie.", "fullscreen": "Vollbild",
     "presentMode": "Bildausgabe", "showFps": "FPS anzeigen", "upscaling": "Hochskalierung",
     "upscalingHint": "Das Spiel rendert unter der Ausgabeauflösung und FSR rekonstruiert das Bild: der größte Leistungshebel auf Apple Silicon.",

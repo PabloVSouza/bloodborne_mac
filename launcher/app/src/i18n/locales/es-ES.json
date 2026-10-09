@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Caza la noche", "subtitle": "Bloodborne, nativo en Apple Silicon.", "gameFolder": "Juego",
-    "gameFolderHint": "Tu volcado de Bloodborne: la carpeta CUSA03173, versión 1.09.", "checking": "Comprobando el juego…", "ready": "Listo para jugar",
-    "noFolder": "Elige la carpeta del juego (CUSA03173).", "summary": "Resumen", "upscaler": "Escalador", "renderSize": "Renderiza a {{size}}",
+    "gameFolderHint": "Tu volcado de Bloodborne (cualquier región) con la actualización 1.09 integrada.", "checking": "Comprobando el juego…", "ready": "Listo para jugar",
+    "noFolder": "Elige la carpeta del juego.", "folder": "Carpeta del juego", "edition": "{{id}} · versión {{version}}", "region": { "america": "América", "europe": "Europa", "japan": "Japón", "asia": "Asia", "unknown": "Región desconocida" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Incluido", "dlcMissing": "No incluido", "dlcMissingHint": "Esta edición vende The Old Hunters como contenido adicional, que el port aún no carga.", "summary": "Resumen", "upscaler": "Escalador", "renderSize": "Renderiza a {{size}}",
     "frameRate": "Tasa de fotogramas", "controller": "Mando", "mods": "Mods",
     "modsActive": "{{count}} activos", "modsActive_one": "{{count}} activo", "modsActive_other": "{{count}} activos", "modsOff": "Desactivados",
     "firstStart": "El primer inicio compila los shaders del juego, así que tarda unos minutos. Los siguientes son rápidos.",
@@ -23,7 +23,7 @@
     "openData": "Partidas y datos"
   },
   "graphics": {
-    "title": "Gráficos", "subtitle": "Compartidos con el menú del juego (Insert o L3 + R3).", "display": "Pantalla",
+    "title": "Gráficos", "subtitle": "Compartidos con el menú del juego (F1 o L3 + R3).", "display": "Pantalla",
     "outputRes": "Resolución de salida", "outputResHint": "El tamaño de la imagen en pantalla. El escalador la rellena.", "fullscreen": "Pantalla completa",
     "presentMode": "Presentación de fotogramas", "showFps": "Mostrar FPS", "upscaling": "Escalado",
     "upscalingHint": "El juego renderiza por debajo de la resolución de salida y FSR reconstruye la imagen: la mayor mejora de rendimiento en Apple Silicon.",

@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "夜を狩れ", "subtitle": "Apple Silicon でネイティブに動く Bloodborne。", "gameFolder": "ゲーム",
-    "gameFolderHint": "お手持ちの Bloodborne のダンプ：CUSA03173 フォルダ、バージョン 1.09。", "checking": "ゲームを確認しています…", "ready": "プレイできます",
-    "noFolder": "ゲームフォルダ（CUSA03173）を選択してください。", "summary": "概要", "upscaler": "アップスケーラー", "renderSize": "{{size}} で描画",
+    "gameFolderHint": "お手持ちの Bloodborne のダンプ（どの地域でも可）に、アップデート 1.09 を統合したもの。", "checking": "ゲームを確認しています…", "ready": "プレイできます",
+    "noFolder": "ゲームフォルダを選択してください。", "folder": "ゲームフォルダ", "edition": "{{id}} · バージョン {{version}}", "region": { "america": "北米・中南米", "europe": "ヨーロッパ", "japan": "日本", "asia": "アジア", "unknown": "不明な地域" }, "oldHunters": "The Old Hunters", "dlcIncluded": "収録", "dlcMissing": "未収録", "dlcMissingHint": "このエディションでは The Old Hunters は追加コンテンツとして販売されており、移植版はまだ読み込みません。", "summary": "概要", "upscaler": "アップスケーラー", "renderSize": "{{size}} で描画",
     "frameRate": "フレームレート", "controller": "コントローラー", "mods": "MOD",
     "modsActive": "{{count}} 件有効", "modsActive_other": "{{count}} 件有効", "modsOff": "オフ",
     "firstStart": "初回はゲームのシェーダーをコンパイルするため数分かかります。2 回目以降はすぐに起動します。",
@@ -23,7 +23,7 @@
     "openData": "セーブとデータ"
   },
   "graphics": {
-    "title": "グラフィック", "subtitle": "ゲーム内メニュー（Insert または L3 + R3）と共有されます。", "display": "画面",
+    "title": "グラフィック", "subtitle": "ゲーム内メニュー（F1 または L3 + R3）と共有されます。", "display": "画面",
     "outputRes": "出力解像度", "outputResHint": "画面上の画像サイズ。アップスケーラーが埋めます。", "fullscreen": "フルスクリーン",
     "presentMode": "フレームの表示方式", "showFps": "FPS を表示", "upscaling": "アップスケーリング",
     "upscalingHint": "ゲームは出力解像度より低い解像度で描画し、FSR が画像を再構成します。Apple Silicon で最も効果の大きい設定です。",

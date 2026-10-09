@@ -12,7 +12,7 @@ export function PlayButton({ className }: { className?: string }) {
   const { data: config } = useConfig();
   const check = useGameCheck(config?.settings.game_dir);
   const { running, play, stop } = useGameStore();
-  const problem = check.data;
+  const problem = check.data?.problem;
 
   if (running) {
     return (

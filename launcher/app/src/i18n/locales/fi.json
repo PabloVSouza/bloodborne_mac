@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Metsästä yötä", "subtitle": "Bloodborne natiivisti Apple Siliconilla.", "gameFolder": "Peli",
-    "gameFolderHint": "Bloodborne-kopiosi: kansio CUSA03173, versio 1.09.", "checking": "Tarkistetaan peliä…", "ready": "Valmis pelattavaksi",
-    "noFolder": "Valitse pelikansio (CUSA03173).", "summary": "Yhteenveto", "upscaler": "Skaalain", "renderSize": "Renderöi {{size}}",
+    "gameFolderHint": "Bloodborne-kopiosi (mikä tahansa alue), johon on yhdistetty päivitys 1.09.", "checking": "Tarkistetaan peliä…", "ready": "Valmis pelattavaksi",
+    "noFolder": "Valitse pelikansio.", "folder": "Pelikansio", "edition": "{{id}} · versio {{version}}", "region": { "america": "Amerikka", "europe": "Eurooppa", "japan": "Japani", "asia": "Aasia", "unknown": "Tuntematon alue" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Mukana", "dlcMissing": "Ei mukana", "dlcMissingHint": "Tässä versiossa The Old Hunters myydään lisäsisältönä, jota portti ei vielä lataa.", "summary": "Yhteenveto", "upscaler": "Skaalain", "renderSize": "Renderöi {{size}}",
     "frameRate": "Kuvataajuus", "controller": "Ohjain", "mods": "Modit",
     "modsActive": "{{count}} käytössä", "modsActive_one": "{{count}} käytössä", "modsActive_other": "{{count}} käytössä", "modsOff": "Pois",
     "firstStart": "Ensimmäinen käynnistys kääntää pelin varjostimet, joten se kestää muutaman minuutin. Seuraavat ovat nopeita.",
@@ -23,7 +23,7 @@
     "openData": "Tallennukset ja tiedot"
   },
   "graphics": {
-    "title": "Grafiikka", "subtitle": "Yhteiset pelin valikon kanssa (Insert tai L3 + R3).", "display": "Näyttö",
+    "title": "Grafiikka", "subtitle": "Yhteiset pelin valikon kanssa (F1 tai L3 + R3).", "display": "Näyttö",
     "outputRes": "Lähtötarkkuus", "outputResHint": "Kuvan koko näytöllä. Skaalain täyttää sen.", "fullscreen": "Koko näyttö",
     "presentMode": "Kuvien esitys", "showFps": "Näytä FPS", "upscaling": "Skaalaus",
     "upscalingHint": "Peli renderöi lähtötarkkuutta pienemmällä ja FSR rakentaa kuvan uudelleen: suurin suorituskykyhyöty Apple Siliconilla.",

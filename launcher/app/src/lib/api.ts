@@ -3,7 +3,7 @@
 import { invoke } from "@tauri-apps/api/core";
 import { listen } from "@tauri-apps/api/event";
 import { mockApi } from "@/lib/mockApi";
-import type { Config, Gamepad, GameState, Mod, Patch, Settings } from "@/lib/types";
+import type { Config, GameCheck, Gamepad, GameState, Mod, Patch, Settings } from "@/lib/types";
 
 /** Running inside the Tauri app (else a browser preview with mock data). */
 const inTauri = typeof window !== "undefined" && "__TAURI_INTERNALS__" in window;
@@ -12,7 +12,7 @@ const tauriApi = {
   loadConfig: () => invoke<Config>("load_config"),
   saveSettings: (settings: Partial<Settings>) => invoke<void>("save_settings", { settings }),
   saveIni: (values: Record<string, string | null>) => invoke<void>("save_ini", { values }),
-  checkGame: (dir: string) => invoke<string | null>("check_game", { dir }),
+  checkGame: (dir: string) => invoke<GameCheck>("check_game", { dir }),
   listMods: () => invoke<{ mods: Mod[]; dir: string }>("list_mods"),
   saveMods: (order: string[], disabled: string[]) => invoke<void>("save_mods", { order, disabled }),
   listPatches: () => invoke<{ patches: Patch[]; dir: string }>("list_patches"),

@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Jag natten", "subtitle": "Bloodborne, nativt på Apple Silicon.", "gameFolder": "Spil",
-    "gameFolderHint": "Din kopi af Bloodborne: mappen CUSA03173, version 1.09.", "checking": "Kontrollerer spillet…", "ready": "Klar til at spille",
-    "noFolder": "Vælg spilmappen (CUSA03173).", "summary": "Overblik", "upscaler": "Opskalering", "renderSize": "Renderer i {{size}}",
+    "gameFolderHint": "Din kopi af Bloodborne (enhver region) med opdatering 1.09 lagt ind.", "checking": "Kontrollerer spillet…", "ready": "Klar til at spille",
+    "noFolder": "Vælg spilmappen.", "folder": "Spilmappe", "edition": "{{id}} · version {{version}}", "region": { "america": "Amerika", "europe": "Europa", "japan": "Japan", "asia": "Asien", "unknown": "Ukendt region" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Inkluderet", "dlcMissing": "Ikke inkluderet", "dlcMissingHint": "Denne udgave sælger The Old Hunters som tilføjelse, som porten endnu ikke indlæser.", "summary": "Overblik", "upscaler": "Opskalering", "renderSize": "Renderer i {{size}}",
     "frameRate": "Billedhastighed", "controller": "Controller", "mods": "Mods",
     "modsActive": "{{count}} aktive", "modsActive_one": "{{count}} aktiv", "modsActive_other": "{{count}} aktive", "modsOff": "Fra",
     "firstStart": "Første start kompilerer spillets shaders og tager derfor et par minutter. Senere starter går hurtigt.",
@@ -23,7 +23,7 @@
     "openData": "Gemte spil og data"
   },
   "graphics": {
-    "title": "Grafik", "subtitle": "Delt med menuen i spillet (Insert eller L3 + R3).", "display": "Skærm",
+    "title": "Grafik", "subtitle": "Delt med menuen i spillet (F1 eller L3 + R3).", "display": "Skærm",
     "outputRes": "Outputopløsning", "outputResHint": "Billedets størrelse på skærmen. Opskaleringen udfylder det.", "fullscreen": "Fuld skærm",
     "presentMode": "Billedvisning", "showFps": "Vis FPS", "upscaling": "Opskalering",
     "upscalingHint": "Spillet renderer under outputopløsningen, og FSR genskaber billedet: den største ydelsesgevinst på Apple Silicon.",

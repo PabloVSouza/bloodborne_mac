@@ -48,8 +48,21 @@ class GameCheckTests(unittest.TestCase):
     def test_update_metadata_with_an_old_executable(self):
         self.assertEqual(game_check.problem(self.game('CUSA03173', '01.09'))[0], 'wrong_eboot')
 
-    def test_other_edition(self):
-        self.assertEqual(game_check.problem(self.game('CUSA00207', '01.09'))[0], 'other_title')
+    def test_other_edition_with_another_executable(self):
+        self.assertEqual(game_check.problem(self.game('CUSA00207', '01.09'))[0], 'other_build')
+
+    def test_other_edition_with_the_supported_executable_passes(self):
+        game = self.game('CUSA00207', '01.09')
+        with mock.patch.object(game_check, 'SUPPORTED_IMAGE', game_check.image_sha256(game)):
+            self.assertIsNone(game_check.problem(game))
+
+    def test_not_bloodborne(self):
+        self.assertEqual(game_check.problem(self.game('CUSA00001', '01.09'))[0], 'other_title')
+
+    def test_describe_edition(self):
+        game = self.game('CUSA03173', '01.09')
+        self.assertEqual(game_check.describe(game)['old_hunters'], True)
+        self.assertEqual(game_check.describe(self.game('CUSA00207', '01.09'))['old_hunters'], False)
 
     def test_unreadable_executable(self):
         self.assertEqual(game_check.problem(self.game('CUSA03173', '01.09', b'junk'))[0], 'unreadable')
@@ -64,7 +77,7 @@ class GameCheckTests(unittest.TestCase):
         self.assertIsNone(game_check.problem(self.game('CUSA03173', '01.00')))
 
     def test_every_problem_is_explained(self):
-        for kind in ('missing_update', 'wrong_eboot', 'other_title', 'unreadable'):
+        for kind in ('missing_update', 'wrong_eboot', 'other_build', 'other_title', 'unreadable'):
             self.assertIn('CUSA', game_check.explain(kind, 'CUSA03173', '01.00'))
 
 

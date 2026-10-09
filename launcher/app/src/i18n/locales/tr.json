@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Geceyi avla", "subtitle": "Bloodborne, Apple Silicon'da yerel olarak.", "gameFolder": "Oyun",
-    "gameFolderHint": "Bloodborne kopyanız: CUSA03173 klasörü, sürüm 1.09.", "checking": "Oyun denetleniyor…", "ready": "Oynamaya hazır",
-    "noFolder": "Oyun klasörünü seçin (CUSA03173).", "summary": "Özet", "upscaler": "Ölçekleyici", "renderSize": "{{size}} çözünürlükte işler",
+    "gameFolderHint": "Bloodborne kopyanız (herhangi bir bölge), 1.09 güncellemesi birleştirilmiş olarak.", "checking": "Oyun denetleniyor…", "ready": "Oynamaya hazır",
+    "noFolder": "Oyun klasörünü seçin.", "folder": "Oyun klasörü", "edition": "{{id}} · sürüm {{version}}", "region": { "america": "Amerika", "europe": "Avrupa", "japan": "Japonya", "asia": "Asya", "unknown": "Bilinmeyen bölge" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Dahil", "dlcMissing": "Dahil değil", "dlcMissingHint": "Bu sürüm The Old Hunters’ı ek içerik olarak satar; port bunu henüz yüklemiyor.", "summary": "Özet", "upscaler": "Ölçekleyici", "renderSize": "{{size}} çözünürlükte işler",
     "frameRate": "Kare hızı", "controller": "Kumanda", "mods": "Modlar",
     "modsActive": "{{count}} etkin", "modsActive_one": "{{count}} etkin", "modsActive_other": "{{count}} etkin", "modsOff": "Kapalı",
     "firstStart": "İlk açılış oyunun gölgelendiricilerini derler, bu yüzden birkaç dakika sürer. Sonraki açılışlar hızlıdır.",
@@ -23,7 +23,7 @@
     "openData": "Kayıtlar ve veriler"
   },
   "graphics": {
-    "title": "Grafik", "subtitle": "Oyun içi menüyle ortak (Insert veya L3 + R3).", "display": "Ekran",
+    "title": "Grafik", "subtitle": "Oyun içi menüyle ortak (F1 veya L3 + R3).", "display": "Ekran",
     "outputRes": "Çıkış çözünürlüğü", "outputResHint": "Görüntünün ekrandaki boyutu. Ölçekleyici onu doldurur.", "fullscreen": "Tam ekran",
     "presentMode": "Kare sunumu", "showFps": "FPS göster", "upscaling": "Ölçekleme",
     "upscalingHint": "Oyun çıkış çözünürlüğünün altında işler ve FSR görüntüyü yeniden oluşturur: Apple Silicon'da en büyük performans kazancı.",

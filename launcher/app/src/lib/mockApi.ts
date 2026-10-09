@@ -1,6 +1,6 @@
 // Browser preview (npm run dev outside Tauri): the backend's answers, in memory, so the
 // interface can be developed and screenshotted in any browser. Never used in the app.
-import type { Config, Gamepad, GameState, Mod, Patch, Settings } from "@/lib/types";
+import type { Config, GameCheck, Gamepad, GameState, Mod, Patch, Settings } from "@/lib/types";
 
 const config: Config = {
   settings: {
@@ -25,7 +25,8 @@ const config: Config = {
     crash_diag: false,
     gpu_profile: false,
     extra_env: "",
-    ui_language: "",
+    // ?lang=en sets the launcher language in the browser preview (screenshots).
+    ui_language: new URLSearchParams(window.location.search).get("lang") ?? "",
   },
   ini: { upscaler: "fsr3", preset: "2", sharpen: "1", sharpness: "0.50", object_motion: "0", show_fps: "1", output_res: "1920x1080" },
   paths: {
@@ -71,7 +72,12 @@ export const mockApi = {
         else config.ini[k] = v;
       }),
     ),
-  checkGame: (dir: string) => wait(dir ? null : "Choose the game folder (CUSA03173)."),
+  checkGame: (dir: string): Promise<GameCheck> =>
+    wait(
+      dir
+        ? { problem: null, game: { title_id: "CUSA03173", title: "Bloodborne™", version: "01.09", region: "europe", old_hunters: true } }
+        : { problem: "Choose the game folder.", game: null },
+    ),
   listMods: () => wait({ mods, dir: config.paths.mods }),
   saveMods: (order: string[], disabled: string[]) =>
     wait(void (mods = order.map((name) => ({ name, enabled: !disabled.includes(name) })))),

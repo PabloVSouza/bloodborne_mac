@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Охоться в ночи", "subtitle": "Bloodborne нативно на Apple Silicon.", "gameFolder": "Игра",
-    "gameFolderHint": "Ваш дамп Bloodborne: папка CUSA03173, версия 1.09.", "checking": "Проверка игры…", "ready": "Готово к игре",
-    "noFolder": "Выберите папку игры (CUSA03173).", "summary": "Коротко", "upscaler": "Апскейлер", "renderSize": "Рендер в {{size}}",
+    "gameFolderHint": "Ваш дамп Bloodborne (любой регион) с установленным обновлением 1.09.", "checking": "Проверка игры…", "ready": "Готово к игре",
+    "noFolder": "Выберите папку игры.", "folder": "Папка игры", "edition": "{{id}} · версия {{version}}", "region": { "america": "Америка", "europe": "Европа", "japan": "Япония", "asia": "Азия", "unknown": "Неизвестный регион" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Есть", "dlcMissing": "Нет", "dlcMissingHint": "В этом издании The Old Hunters продаётся как дополнение, которое порт пока не загружает.", "summary": "Коротко", "upscaler": "Апскейлер", "renderSize": "Рендер в {{size}}",
     "frameRate": "Частота кадров", "controller": "Контроллер", "mods": "Моды",
     "modsActive": "Активно: {{count}}", "modsActive_one": "{{count}} активен", "modsActive_few": "{{count}} активны", "modsActive_many": "{{count}} активно", "modsActive_other": "Активно: {{count}}", "modsOff": "Выключены",
     "firstStart": "Первый запуск компилирует шейдеры игры, поэтому занимает несколько минут. Следующие запуски быстрые.",
@@ -23,7 +23,7 @@
     "openData": "Сохранения и данные"
   },
   "graphics": {
-    "title": "Графика", "subtitle": "Общие с меню в игре (Insert или L3 + R3).", "display": "Экран",
+    "title": "Графика", "subtitle": "Общие с меню в игре (F1 или L3 + R3).", "display": "Экран",
     "outputRes": "Разрешение вывода", "outputResHint": "Размер изображения на экране. Апскейлер его заполняет.", "fullscreen": "Полноэкранный режим",
     "presentMode": "Режим показа кадров", "showFps": "Показывать FPS", "upscaling": "Апскейлинг",
     "upscalingHint": "Игра рендерится ниже разрешения вывода, а FSR восстанавливает изображение: главный рычаг производительности на Apple Silicon.",

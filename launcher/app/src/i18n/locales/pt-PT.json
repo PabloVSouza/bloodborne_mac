@@ -14,8 +14,8 @@
   },
   "home": {
     "title": "Caça a noite", "subtitle": "Bloodborne, nativo no Apple Silicon.", "gameFolder": "Jogo",
-    "gameFolderHint": "A sua cópia de Bloodborne: a pasta CUSA03173, versão 1.09.", "checking": "A verificar o jogo…", "ready": "Pronto para jogar",
-    "noFolder": "Escolha a pasta do jogo (CUSA03173).", "summary": "Resumo", "upscaler": "Upscaler", "renderSize": "Renderiza a {{size}}",
+    "gameFolderHint": "A sua cópia de Bloodborne (qualquer região) com a atualização 1.09 integrada.", "checking": "A verificar o jogo…", "ready": "Pronto para jogar",
+    "noFolder": "Escolha a pasta do jogo.", "folder": "Pasta do jogo", "edition": "{{id}} · versão {{version}}", "region": { "america": "Américas", "europe": "Europa", "japan": "Japão", "asia": "Ásia", "unknown": "Região desconhecida" }, "oldHunters": "The Old Hunters", "dlcIncluded": "Incluído", "dlcMissing": "Não incluído", "dlcMissingHint": "Esta edição vende The Old Hunters como conteúdo adicional, que o port ainda não carrega.", "summary": "Resumo", "upscaler": "Upscaler", "renderSize": "Renderiza a {{size}}",
     "frameRate": "Taxa de fotogramas", "controller": "Comando", "mods": "Mods",
     "modsActive": "{{count}} ativos", "modsActive_one": "{{count}} ativo", "modsActive_other": "{{count}} ativos", "modsOff": "Desligados",
     "firstStart": "O primeiro arranque compila os shaders do jogo e demora alguns minutos. Os seguintes são rápidos.",
@@ -23,7 +23,7 @@
     "openData": "Gravações e dados"
   },
   "graphics": {
-    "title": "Gráficos", "subtitle": "Partilhados com o menu do jogo (Insert ou L3 + R3).", "display": "Ecrã",
+    "title": "Gráficos", "subtitle": "Partilhados com o menu do jogo (F1 ou L3 + R3).", "display": "Ecrã",
     "outputRes": "Resolução de saída", "outputResHint": "O tamanho da imagem no ecrã. O upscaler preenche-a.", "fullscreen": "Ecrã inteiro",
     "presentMode": "Apresentação de fotogramas", "showFps": "Mostrar FPS", "upscaling": "Upscaling",
     "upscalingHint": "O jogo renderiza abaixo da resolução de saída e o FSR reconstrói a imagem: o maior ganho de desempenho no Apple Silicon.",
