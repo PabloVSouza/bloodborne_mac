@@ -19,12 +19,16 @@
   <img src="docs/screenshots/title.jpg" alt="Bloodborne's title screen on a Mac" width="98%">
 </p>
 <p align="center">
+  <img src="docs/screenshots/hunters-dream.jpg" alt="The Hunter's Dream at 60 FPS with FSR 3.1 on an Apple M3 Pro" width="49%">
   <img src="docs/screenshots/game.jpg" alt="Bloodborne running on an Apple M3 Pro" width="49%">
-  <img src="docs/screenshots/game-menu.jpg" alt="The in-game settings menu" width="49%">
 </p>
 <p align="center">
+  <img src="docs/screenshots/game-menu.jpg" alt="The in-game settings menu" width="49%">
   <img src="docs/screenshots/launcher-home.png" alt="The launcher's home tab" width="49%">
+</p>
+<p align="center">
   <img src="docs/screenshots/launcher-graphics.png" alt="The launcher's graphics settings" width="49%">
+  <img src="docs/screenshots/launcher-controls.png" alt="The launcher's controls tab" width="49%">
 </p>
 
 > [!IMPORTANT]
