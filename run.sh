@@ -114,7 +114,7 @@ fps=${BB_FPS:-uncap}
 # (output and presets change in the menu without a restart, but post-processing stays at 1080p
 # and scene targets are copied back: much slower on the Steam Deck and older GPUs). Chosen by
 # BB_LIVE_RES=0/1, else bbport.ini live_resolution=0/1/auto (auto: the GPU check, strong
-# discrete GPUs get them); off when unset. 1080p output and TAA always use the live path.
+# discrete GPUs get them); off when unset. TAA and native 1080p always use the live path.
 if [[ -z ${BB_RENDER_RES:-} ]]; then
     read -r scaled_render scaled_output < <("$PYTHON" scripts/patches.py --print-scaled --settings "$BB_CONFIG") || true
 fi
@@ -140,8 +140,12 @@ if [[ $live == 1 ]]; then
     echo "Output ${scaled_output}: live resolution changes (live_resolution=0: startup patch)"
 elif [[ -n ${scaled_output:-} ]]; then
     export BB_RENDER_RES=$scaled_render BB_OUTPUT_RES=$scaled_output BB_AUTO_RENDER_RES=1
-    export BB_DMEM_MB=${BB_DMEM_MB:-9152}
-    echo "Output ${scaled_output}: scene ${scaled_render}, direct memory ${BB_DMEM_MB} MiB (live_resolution=1: live changes)"
+    # Outputs above 1080p need more direct memory for their targets; at 1080p the default
+    # (9152 MiB there ran the clinic at 7 FPS instead of 36 on an 18 GB M3 Pro).
+    if (( ${scaled_output%x*} > 1920 )); then
+        export BB_DMEM_MB=${BB_DMEM_MB:-9152}
+    fi
+    echo "Output ${scaled_output}: scene ${scaled_render}, direct memory ${BB_DMEM_MB:-default} MiB (live_resolution=1: live changes)"
 fi
 "$PYTHON" scripts/patches.py --out "$out" --fps "$fps" --extra "${BB_PATCHES:-}" --settings "$BB_CONFIG" --game-dir "$game" --render-res "${BB_RENDER_RES:-}" --output-res "${BB_OUTPUT_RES:-}" \
     --patches-dir "${BB_PATCHES_DIR:-$data/patches}" --patches-config "${BB_PATCHES_CONFIG:-$data/patches.json}"
