@@ -27,6 +27,16 @@ jobs:
           submodules: recursive
           fetch-depth: 0 # git describe for the version
 
+      # The newest Xcode on the image: the GPU library uses std::jthread and std::stop_token,
+      # which Xcode 16's libc++ keeps behind -fexperimental-library.
+      - name: Xcode
+        run: |
+          ls -d /Applications/Xcode*.app
+          xcode=$(ls -d /Applications/Xcode_*.app | sort -V | tail -1)
+          sudo xcode-select -s "$xcode"
+          xcodebuild -version
+          clang --version | head -1
+
       - name: Tools
         run: brew install bash pkgconf glslang nasm cmake ninja
 
