@@ -505,6 +505,63 @@ bool QuadsAsTriangles() {
     return enabled;
 }
 
+bool RectsAsTriangles() {
+    static const bool enabled = [] {
+        const char* env = std::getenv("BB_RECTS_AS_TRIANGLES");
+        return !env || env[0] != '0';
+    }();
+    return enabled;
+}
+
+/// bbport: the vertex stage of a rect list can be drawn as triangles with corners the CPU adds:
+/// a passthrough (Info::rect_position_attr) of 32-bit float attributes, position per vertex.
+static bool RectPassthrough(const PipelineSelection& sel) {
+    using InstanceIdType = Shader::Gcn::VertexAttribute::InstanceIdType;
+    if (sel.regs->stage_enable.raw != AmdGpu::ShaderStageEnable::VgtStages::Vs) {
+        return false;
+    }
+    const auto* vs = sel.infos[static_cast<u32>(Shader::SwStage::Vertex)];
+    if (!vs || vs->rect_position_attr < 0 || !sel.fetch_shader) {
+        return false;
+    }
+    bool position = false;
+    for (const auto& attrib : sel.fetch_shader->attributes) {
+        const bool is_position = attrib.semantic == u32(vs->rect_position_attr);
+        if (attrib.GetStepRate() != InstanceIdType::None) {
+            if (is_position) {
+                return false;
+            }
+            continue;
+        }
+        const auto buffer = attrib.GetSharp(*vs);
+        const u32 components = RectAttributeComponents(
+            LiverpoolToVK::SurfaceFormat(buffer.GetDataFmt(), buffer.GetNumberFmt()));
+        if (components == 0) {
+            return false;
+        }
+        if (is_position) {
+            position = vs->rect_position_comp[0] < components &&
+                       vs->rect_position_comp[1] < components;
+        }
+    }
+    return position;
+}
+
+u32 RectAttributeComponents(vk::Format format) {
+    switch (format) {
+    case vk::Format::eR32Sfloat:
+        return 1;
+    case vk::Format::eR32G32Sfloat:
+        return 2;
+    case vk::Format::eR32G32B32Sfloat:
+        return 3;
+    case vk::Format::eR32G32B32A32Sfloat:
+        return 4;
+    default:
+        return 0;
+    }
+}
+
 bool PipelineCache::RefreshGraphicsKey(PipelineSelection& sel) {
     std::memset(&sel.graphics_key, 0, sizeof(GraphicsPipelineKey));
     const auto& regs = (*sel.regs);
@@ -583,6 +640,18 @@ bool PipelineCache::RefreshGraphicsKey(PipelineSelection& sel) {
     // Compile and bind shader stages
     if (!RefreshGraphicsStages(sel)) {
         return false;
+    }
+    // bbport (RectsAsTriangles): a rect list whose vertex shader passes float attributes through
+    // is drawn as a triangle list, its 4th corners written by the rasterizer (ExpandRects).
+    if (key.prim_type == AmdGpu::PrimitiveType::RectList && RectsAsTriangles() && !sel.indirect &&
+        RectPassthrough(sel)) {
+        key.prim_type = AmdGpu::PrimitiveType::TriangleList;
+        if (!RefreshGraphicsStages(sel) || !RectPassthrough(sel)) {
+            key.prim_type = AmdGpu::PrimitiveType::RectList;
+            if (!RefreshGraphicsStages(sel)) {
+                return false;
+            }
+        }
     }
     if (motion_possible) {
         const auto* vs = sel.infos[static_cast<u32>(Shader::SwStage::Vertex)];

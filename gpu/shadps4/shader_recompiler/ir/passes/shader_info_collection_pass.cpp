@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024-2026 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <optional>
 #include "core/emulator_settings.h"
 #include "shader_recompiler/ir/program.h"
 #include "shader_recompiler/profile.h"
@@ -168,6 +169,139 @@ void Visit(Info& info, const IR::Inst& inst) {
     }
 }
 
+/// bbport: a vertex shader whose every output is one of its vertex attributes' components or a
+/// constant (a passthrough). A rect list drawn with it can be drawn as two triangles per rect, the
+/// 4th corner's attributes computed from the other three's (as the rect-list TCS computes its
+/// outputs): info.rect_position_attr is the attribute position x and y come from.
+static void FindRectPassthrough(const IR::Program& program, Info& info) {
+    info.rect_position_attr = -1;
+    if (info.sw_stage != SwStage::Vertex || !info.has_fetch_shader) {
+        return;
+    }
+    struct Source {
+        bool constant;
+        IR::Attribute attribute;
+        u32 comp;
+    };
+    const auto resolve = [](IR::Value value) -> std::optional<Source> {
+        for (int depth = 0; depth < 16; ++depth) {
+            if (value.IsImmediate()) {
+                return Source{true, IR::Attribute::Param0, 0};
+            }
+            const IR::Inst* inst = value.Inst();
+            switch (inst->GetOpcode()) {
+            case IR::Opcode::GetAttribute:
+                if (!IR::IsParam(inst->Arg(0).Attribute()) || !inst->Arg(2).IsImmediate() ||
+                    inst->Arg(2).U32() != 0) {
+                    return std::nullopt;
+                }
+                return Source{false, inst->Arg(0).Attribute(), inst->Arg(1).U32()};
+            case IR::Opcode::CompositeExtractF32x2:
+            case IR::Opcode::CompositeExtractF32x3:
+            case IR::Opcode::CompositeExtractF32x4: {
+                if (!inst->Arg(1).IsImmediate()) {
+                    return std::nullopt;
+                }
+                // The component of a vector: through shuffles to the construct of it.
+                u32 index = inst->Arg(1).U32();
+                IR::Value composite = inst->Arg(0);
+                for (int step = 0;; ++step) {
+                    if (composite.IsImmediate() || step == 16) {
+                        return std::nullopt;
+                    }
+                    const IR::Inst* vector = composite.Inst();
+                    const auto op = vector->GetOpcode();
+                    if (op == IR::Opcode::CompositeShuffleF32x2 ||
+                        op == IR::Opcode::CompositeShuffleF32x3 ||
+                        op == IR::Opcode::CompositeShuffleF32x4) {
+                        const u32 size = op == IR::Opcode::CompositeShuffleF32x2   ? 2
+                                         : op == IR::Opcode::CompositeShuffleF32x3 ? 3
+                                                                                   : 4;
+                        if (index >= size || !vector->Arg(2 + index).IsImmediate()) {
+                            return std::nullopt;
+                        }
+                        const u32 pick = vector->Arg(2 + index).U32();
+                        composite = vector->Arg(pick < size ? 0 : 1);
+                        index = pick < size ? pick : pick - size;
+                        continue;
+                    }
+                    if (op == IR::Opcode::CompositeConstructF32x2 ||
+                        op == IR::Opcode::CompositeConstructF32x3 ||
+                        op == IR::Opcode::CompositeConstructF32x4) {
+                        if (index >= vector->NumArgs()) {
+                            return std::nullopt;
+                        }
+                        value = vector->Arg(index);
+                        break;
+                    }
+                    return std::nullopt;
+                }
+                continue;
+            }
+            default:
+                return std::nullopt;
+            }
+        }
+        return std::nullopt;
+    };
+    std::array<std::optional<Source>, 2> position{};
+    for (const IR::Block* const block : program.blocks) {
+        for (const IR::Inst& inst : block->Instructions()) {
+            switch (inst.GetOpcode()) {
+            case IR::Opcode::Prologue:
+            case IR::Opcode::Epilogue:
+            case IR::Opcode::Void:
+            case IR::Opcode::GetAttribute:
+            case IR::Opcode::CompositeConstructF32x2:
+            case IR::Opcode::CompositeConstructF32x3:
+            case IR::Opcode::CompositeConstructF32x4:
+            case IR::Opcode::CompositeExtractF32x2:
+            case IR::Opcode::CompositeExtractF32x3:
+            case IR::Opcode::CompositeExtractF32x4:
+            case IR::Opcode::CompositeShuffleF32x2:
+            case IR::Opcode::CompositeShuffleF32x3:
+            case IR::Opcode::CompositeShuffleF32x4:
+            case IR::Opcode::UndefU32:
+            case IR::Opcode::UndefF32:
+                break; // their uses by outputs are checked there
+            case IR::Opcode::SetAttribute: {
+                const IR::Attribute attribute = inst.Arg(0).Attribute();
+                if (attribute != IR::Attribute::Position0 && !IR::IsParam(attribute)) {
+                    return;
+                }
+                const auto source = resolve(inst.Arg(1));
+                if (!source) {
+                    return;
+                }
+                const u32 comp = inst.Arg(2).U32();
+                if (attribute == IR::Attribute::Position0 && comp < 2) {
+                    position[comp] = source;
+                }
+                break;
+            }
+            default:
+                if (std::getenv("BB_RECT_DEBUG")) {
+                    std::printf("Rect passthrough: vs %016llx no (%s)\n",
+                                (unsigned long long)info.pgm_hash,
+                                IR::NameOf(inst.GetOpcode()).data());
+                }
+                return;
+            }
+        }
+    }
+    if (std::getenv("BB_RECT_DEBUG")) {
+        std::printf("Rect passthrough: vs %016llx position %d/%d\n",
+                    (unsigned long long)info.pgm_hash, position[0] ? 1 : 0, position[1] ? 1 : 0);
+    }
+    if (!position[0] || !position[1] || position[0]->constant || position[1]->constant ||
+        position[0]->attribute != position[1]->attribute) {
+        return;
+    }
+    info.rect_position_attr =
+        s8(u32(position[0]->attribute) - u32(IR::Attribute::Param0));
+    info.rect_position_comp = {u8(position[0]->comp), u8(position[1]->comp)};
+}
+
 void CollectShaderInfoPass(IR::Program& program, const Profile& profile) {
     Info& info = program.info;
     for (IR::Block* const block : program.post_order_blocks) {
@@ -175,6 +309,7 @@ void CollectShaderInfoPass(IR::Program& program, const Profile& profile) {
             Visit(info, inst);
         }
     }
+    FindRectPassthrough(program, info);
 
     if (!EmulatorSettings.IsDirectMemoryAccessEnabled()) {
         info.uses_dma = false;

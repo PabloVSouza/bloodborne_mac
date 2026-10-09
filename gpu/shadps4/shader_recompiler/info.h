@@ -72,6 +72,10 @@ struct InfoPersistent {
     SwStage sw_stage;
 
     u8 mrt_mask{};
+    /// bbport: a vertex shader passing its attributes through (outputs are attribute components
+    /// or constants): the fetched attribute position x and y come from, else -1.
+    s8 rect_position_attr = -1;
+    std::array<u8, 2> rect_position_comp{};
     bool has_fetch_shader{};
     bool has_bitwise_xor{};
     bool uses_dma{};

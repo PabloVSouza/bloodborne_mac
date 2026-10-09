@@ -1258,8 +1258,61 @@ bool Rasterizer::FilterDrawPasses() const {
     return !(mode == Mode::Disable && (depth_copy || stencil_copy));
 }
 
+static std::atomic<u64> empty_draws_skipped{0};
+
+bool Rasterizer::SkipsEmptyDraws() {
+    static const bool keep = [] {
+        const char* env = std::getenv("BB_KEEP_EMPTY_DRAWS");
+        return env && env[0] == '1';
+    }();
+    return !keep;
+}
+
+bool Rasterizer::IsEmptyDraw(const GraphicsPipeline* pipeline) const {
+    if (db_desc.first) {
+        return false;
+    }
+    // (cb_descs past the pipeline's targets are left over from earlier draws.)
+    const u32 num_targets = std::bit_width(pipeline->GetGraphicsKey().mrt_mask);
+    for (u32 cb = 0; cb < num_targets; ++cb) {
+        if (cb_descs[cb].first) {
+            return false;
+        }
+    }
+    for (const auto* stage : pipeline->GetStages()) {
+        if (!stage) {
+            continue;
+        }
+        // Pixel shaders are kept (discards and depth exports have no target here, but stay
+        // safe); other stages must not write memory.
+        if (stage->hw_stage == Shader::HwStage::Fragment ||
+            std::ranges::any_of(stage->buffers, [](const auto& b) { return b.is_written; }) ||
+            std::ranges::any_of(stage->images, [](const auto& i) { return i.is_written; })) {
+            return false;
+        }
+    }
+    return true;
+}
+
 void Rasterizer::Draw(bool is_indexed, u32 index_offset, const PreparedDraw* prepared) {
     RENDERER_TRACE;
+    // bbport BB_SKIP_RECTLISTS=1 (measurement only, renders wrongly): rect lists are not drawn.
+    static const bool skip_rects = [] {
+        const char* env = std::getenv("BB_SKIP_RECTLISTS");
+        return env && env[0] == '1';
+    }();
+    if (skip_rects && Regs().primitive_type == AmdGpu::PrimitiveType::RectList) {
+        return;
+    }
+    // bbport BB_SKIP_TESS=1 (measurement only, renders wrongly): tessellated draws are not drawn.
+    static const bool skip_tess = [] {
+        const char* env = std::getenv("BB_SKIP_TESS");
+        return env && env[0] == '1';
+    }();
+    if (skip_tess && (Regs().stage_enable.raw == AmdGpu::ShaderStageEnable::VgtStages::LsHs ||
+                      Regs().stage_enable.raw == AmdGpu::ShaderStageEnable::VgtStages::LsHsEsGs)) {
+        return;
+    }
     BbStats::draws.fetch_add(1, std::memory_order_relaxed);
 
     // bbport: with the draw pipeline this thread only selects the pipeline and hands the draw
@@ -1339,12 +1392,16 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
     const bool quad_triangles = regs.primitive_type == AmdGpu::PrimitiveType::QuadList &&
                                 pipeline->GetGraphicsKey().prim_type ==
                                     AmdGpu::PrimitiveType::TriangleList;
+    // bbport: a rect list drawn as triangles (RectsAsTriangles): corners added by ExpandRects.
+    const bool rect_triangles = regs.primitive_type == AmdGpu::PrimitiveType::RectList &&
+                                pipeline->GetGraphicsKey().prim_type ==
+                                    AmdGpu::PrimitiveType::TriangleList;
     // BB_FRAME_STATS: quad/rect lists by path, every 5 s.
     static const bool prim_stats = std::getenv("BB_FRAME_STATS") != nullptr;
     if (prim_stats) {
         static std::atomic<u64> converted{0}, quad_tess{0}, rect_tess{0};
         static std::atomic<s64> window{0};
-        if (quad_triangles) {
+        if (quad_triangles || rect_triangles) {
             ++converted;
         } else if (regs.primitive_type == AmdGpu::PrimitiveType::QuadList) {
             ++quad_tess;
@@ -1356,12 +1413,22 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
         s64 last = window.load(std::memory_order_relaxed);
         if (now - last >= 5 && window.compare_exchange_strong(last, now)) {
             std::printf("Quad/rect lists: %.1f/s drawn as triangles, %.1f/s quad lists and %.1f/s "
-                        "rect lists tessellated\n", converted.exchange(0) / 5.0,
-                        quad_tess.exchange(0) / 5.0, rect_tess.exchange(0) / 5.0);
+                        "rect lists tessellated; %.1f/s empty draws skipped\n",
+                        converted.exchange(0) / 5.0, quad_tess.exchange(0) / 5.0,
+                        rect_tess.exchange(0) / 5.0, empty_draws_skipped.exchange(0) / 5.0);
         }
     }
 
     PrepareRenderState(pipeline);
+    // bbport: a draw with no color or depth target that writes no memory has no effect (the
+    // game issues such draws next to clears and flushes); on MoltenVK each still costs a render
+    // pass, and a rect list a compute pass besides. BB_KEEP_EMPTY_DRAWS=1 draws them.
+    if (SkipsEmptyDraws() && IsEmptyDraw(pipeline)) {
+        empty_draws_skipped.fetch_add(1, std::memory_order_relaxed);
+        bind_prepared = nullptr;
+        ResetBindings(false);
+        return;
+    }
     if (upscaler->Enabled() && std::popcount(pipeline->GetGraphicsKey().mrt_mask) == 1) {
         const auto& viewport = Regs().viewports[0];
         upscaler->OnDraw(pipeline->GetStage(Shader::SwStage::Vertex).pgm_hash,
@@ -1371,7 +1438,8 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
     const PreparedDraw* draw_prepared = bind_prepared;
     // bbport: vertex and index buffers are resolved while the helper binds textures (their
     // commands are recorded after BeginRendering, as before).
-    draw_inputs = {pipeline, draw_prepared, index_offset, is_indexed && !quad_triangles, true, false};
+    const bool guest_indexed = is_indexed && !quad_triangles && !rect_triangles;
+    draw_inputs = {pipeline, draw_prepared, index_offset, guest_indexed, true, false};
     const bool bound = BindResources(pipeline);
     bind_prepared = nullptr; // indirect draws and dispatches bind without prepared sharps
     const bool inputs_resolved = draw_inputs.resolved;
@@ -1383,8 +1451,16 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
 
     if (!inputs_resolved) {
         ResolveVertexBuffers(pipeline, draw_prepared);
-        if (is_indexed && !quad_triangles) {
+        if (guest_indexed) {
             ResolveIndexBuffer(index_offset);
+        }
+    }
+    u32 rect_vertices = 0;
+    if (rect_triangles) {
+        rect_vertices = ExpandRects(pipeline, is_indexed, index_offset);
+        if (rect_vertices == 0) {
+            ResetBindings(false);
+            return;
         }
     }
     EmitVertexBuffers();
@@ -1509,10 +1585,12 @@ void Rasterizer::DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw
     const auto [vertex_offset, instance_offset] = GetDrawOffsets(regs, vs_info, fetch_shader);
 
     const vk::Pipeline handle = pipeline->Handle();
-    const u32 num_indices = quad_triangles ? regs.num_indices / 4 * 6 : regs.num_indices;
-    const bool draw_indexed = is_indexed || quad_triangles;
+    const u32 num_indices = rect_triangles   ? rect_vertices
+                            : quad_triangles ? regs.num_indices / 4 * 6
+                                             : regs.num_indices;
+    const bool draw_indexed = (is_indexed || quad_triangles) && !rect_triangles;
     const u32 num_instances = regs.num_instances.NumInstances();
-    const u32 first_vertex = vertex_offset;
+    const u32 first_vertex = rect_triangles ? 0 : vertex_offset;
     const u32 first_instance = instance_offset;
     const auto* ps_info = pipeline->GetStages()[u32(Shader::SwStage::Fragment)];
     const Breadcrumbs::Crumb crumb{
@@ -2291,6 +2369,163 @@ void Rasterizer::EmitIndexBuffer() {
                       type = index_bind.type](vk::CommandBuffer cmdbuf) {
         cmdbuf.bindIndexBuffer(handle, offset, type);
     });
+}
+
+// bbport (RectsAsTriangles): the rects of a rect list as two triangles each, through a vertex shader
+// passing its float attributes through: per-vertex attributes are copied into the stream buffer,
+// six vertices per rect, the 4th corner computed from the other three as the rect-list TCS
+// computes it (positions decide which corner is the right angle). Returns the vertex count, 0 when
+// the draw cannot be expanded (skipped).
+u32 Rasterizer::ExpandRects(const GraphicsPipeline* pipeline, bool is_indexed, u32 index_offset) {
+    BB_SECTION(EmitVertexBuffers);
+    const auto& regs = Regs();
+    const u32 rects = regs.num_indices / 3;
+    const auto& vs = pipeline->GetStage(Shader::SwStage::Vertex);
+    if (rects == 0 || vs.rect_position_attr < 0) {
+        return 0;
+    }
+    const auto [vertex_offset, instance_offset] =
+        GetDrawOffsets(regs, vs, pipeline->GetFetchShader());
+    // The guest vertex of each rect corner.
+    auto& ids = rect_vertex_ids;
+    ids.resize(u64(rects) * 3);
+    if (is_indexed) {
+        const bool is_index16 = regs.index_buffer_type.index_type == AmdGpu::IndexType::Index16;
+        const u32 index_size = is_index16 ? 2 : 4;
+        const VAddr address =
+            regs.index_base_address.Address<VAddr>() + u64(index_offset) * index_size;
+        const u64 bytes = ids.size() * index_size;
+        if (!memory->IsValidGpuMapping(address, 0) ||
+            memory->ClampRangeSize(address, bytes) != bytes) {
+            return 0;
+        }
+        for (u64 i = 0; i < ids.size(); ++i) {
+            ids[i] = vertex_offset + (is_index16 ? reinterpret_cast<const u16*>(address)[i]
+                                                 : reinterpret_cast<const u32*>(address)[i]);
+        }
+    } else {
+        for (u64 i = 0; i < ids.size(); ++i) {
+            ids[i] = vertex_offset + u32(i);
+        }
+    }
+    const u32 max_id = *std::ranges::max_element(ids);
+
+    VertexInputs<vk::VertexInputAttributeDescription2EXT> attributes;
+    VertexInputs<vk::VertexInputBindingDescription2EXT> bindings;
+    VertexInputs<vk::VertexInputBindingDivisorDescriptionEXT> divisors;
+    VertexInputs<AmdGpu::Buffer> guest_buffers;
+    pipeline->GetVertexInputs(attributes, bindings, divisors, guest_buffers,
+                              regs.vgt_instance_step_rate_0, regs.vgt_instance_step_rate_1);
+    auto& v = vertex_binds;
+    if (guest_buffers.size() != v.num_buffers || v.host_buffers.size() != v.num_buffers) {
+        return 0;
+    }
+    // Per-vertex attributes: their guest data and size; the position's.
+    struct Stream {
+        u32 index;
+        u32 components;
+        const u8* base;
+        u32 stride;
+    };
+    VertexInputs<Stream> streams;
+    const float* position_base = nullptr;
+    u32 position_stride = 0;
+    u64 total = 0;
+    for (u32 i = 0; i < guest_buffers.size(); ++i) {
+        if (bindings[i].inputRate != vk::VertexInputRate::eVertex) {
+            continue;
+        }
+        const auto& buffer = guest_buffers[i];
+        const u32 components = RectAttributeComponents(attributes[i].format);
+        const u32 stride = buffer.GetStride();
+        const u64 bytes = u64(max_id) * stride + components * 4;
+        if (components == 0 || buffer.base_address == 0 ||
+            !memory->IsValidGpuMapping(buffer.base_address, 0) ||
+            memory->ClampRangeSize(buffer.base_address, bytes) != bytes ||
+            (buffer.base_address & 3) != 0 || (stride & 3) != 0) {
+            return 0;
+        }
+        if (buffer_cache.IsRegionGpuModified(buffer.base_address, bytes)) {
+            static std::atomic<bool> warned{false};
+            if (!warned.exchange(true)) {
+                std::printf("Rects as triangles: vertices the GPU writes, read by the CPU (%#llx)\n",
+                            static_cast<unsigned long long>(buffer.base_address));
+            }
+        }
+        const auto* base = reinterpret_cast<const u8*>(buffer.base_address);
+        streams.push_back({i, components, base, stride});
+        total += u64(rects) * 6 * components * 4;
+        if (attributes[i].location == u32(vs.rect_position_attr)) {
+            position_base = reinterpret_cast<const float*>(base);
+            position_stride = stride / 4;
+        }
+    }
+    if (!position_base) {
+        return 0;
+    }
+    // Each rect's corner order (right angle first) and weights of the 4th corner: as the TCS
+    // (emit_spirv_quad_rect.cpp) decides them from positions x and y.
+    auto& corners = rect_corners;
+    corners.resize(rects);
+    const u32 cx = vs.rect_position_comp[0], cy = vs.rect_position_comp[1];
+    for (u32 r = 0; r < rects; ++r) {
+        std::array<float, 3> x, y;
+        for (u32 i = 0; i < 3; ++i) {
+            const float* p = position_base + u64(ids[r * 3 + i]) * position_stride;
+            x[i] = p[cx];
+            y[i] = p[cy];
+        }
+        std::array<bool, 3> edge;
+        for (u32 i = 0; i < 3; ++i) {
+            const u32 n = (i + 1) % 3, p = (i + 2) % 3;
+            const bool ex = x[i] == x[n], ey = y[i] == y[n];
+            const bool px = x[p] == x[i], py = y[p] == y[i];
+            edge[i] = (ex && py) || (ey && px);
+        }
+        const u8 first = edge[1] ? 1 : (edge[2] ? 2 : 0);
+        auto& c = corners[r];
+        c.order = {first, u8((first + 1) % 3), u8((first + 2) % 3)};
+        for (u32 i = 0; i < 3; ++i) {
+            c.weight[i] = edge[i] ? -1.0f : 1.0f;
+        }
+    }
+    auto& stream = buffer_cache.GetStreamBuffer();
+    const auto [data, offset] = stream.Map(total, 16);
+    u64 at = 0;
+    for (const auto& s : streams) {
+        const u32 size = s.components * 4;
+        auto* out = reinterpret_cast<float*>(data + at);
+        for (u32 r = 0; r < rects; ++r) {
+            const auto& c = corners[r];
+            std::array<const float*, 3> in;
+            for (u32 i = 0; i < 3; ++i) {
+                in[i] = reinterpret_cast<const float*>(s.base + u64(ids[r * 3 + i]) * s.stride);
+            }
+            std::array<float, 4> fourth{};
+            for (u32 k = 0; k < s.components; ++k) {
+                fourth[k] = in[0][k] * c.weight[0] + (in[1][k] * c.weight[1] + in[2][k] * c.weight[2]);
+            }
+            const std::array<const float*, 6> vertices = {in[c.order[0]], in[c.order[1]],
+                                                          in[c.order[2]], in[c.order[1]],
+                                                          fourth.data(),  in[c.order[2]]};
+            for (const float* vertex : vertices) {
+                std::memcpy(out, vertex, size);
+                out += s.components;
+            }
+        }
+        v.host_buffers[s.index] = stream.Handle();
+        v.host_offsets[s.index] = offset + at;
+        v.host_sizes[s.index] = u64(rects) * 6 * size;
+        v.host_strides[s.index] = size;
+        for (auto& binding : v.bindings) {
+            if (binding.binding == bindings[s.index].binding) {
+                binding.stride = size;
+            }
+        }
+        at += u64(rects) * 6 * size;
+    }
+    stream.Commit();
+    return rects * 6;
 }
 
 // bbport (QuadsAsTriangles): the quads of a quad list as two triangles each, (0 1 2) (0 2 3), in an

@@ -105,6 +105,14 @@ struct PipelineSelection {
 /// BB_QUADS_AS_TRIANGLES=1 (off by default: not exercised by the game yet; its tessellated
 /// draws are rect lists).
 bool QuadsAsTriangles();
+/// bbport: rect lists whose vertex shader passes 32-bit float attributes through drawn as triangle
+/// lists, two triangles per rect, the 4th corner computed on the CPU (Rasterizer::ExpandRects)
+/// instead of by a tessellation stage (a compute pass per draw on MoltenVK).
+/// BB_RECTS_AS_TRIANGLES=0 tessellates them all.
+bool RectsAsTriangles();
+/// bbport: the components of a vertex attribute format ExpandRects computes corners in (32-bit
+/// floats), else 0.
+u32 RectAttributeComponents(vk::Format format);
 
 /// bbport: a draw-preparation worker's own program state (see vk_draw_prep.h).
 struct PrepWorker {

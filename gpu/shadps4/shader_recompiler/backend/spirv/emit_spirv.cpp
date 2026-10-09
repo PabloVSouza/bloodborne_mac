@@ -1,6 +1,7 @@
 // SPDX-FileCopyrightText: Copyright 2024 shadPS4 Emulator Project
 // SPDX-License-Identifier: GPL-2.0-or-later
 
+#include <cstdlib>
 #include <span>
 #include <type_traits>
 #include <utility>
@@ -585,6 +586,20 @@ void SetupRoundingMode(EmitContext& ctx, const Profile& profile, const RuntimeIn
 
 void SetupInfNanPreserveMode(EmitContext& ctx, const Profile& profile,
                              const RuntimeInfo& runtime_info, Id main_func) {
+    // bbport: SPIRV-Cross (MoltenVK) turns SignedZeroInfNanPreserve into precise:: versions of
+    // every transcendental (sqrt, rsqrt, exp2, log2, ...) and MoltenVK then compiles the shader
+    // without fast math. BB_SHADER_INFNAN=0: no preserve mode anywhere, 1: vertex stages only,
+    // 2: everywhere (shadPS4's behavior).
+    static const int infnan_mode = [] {
+        // Default 2: without it, frame times measured the same (2026-10-09, 1080p clinic).
+        const char* env = std::getenv("BB_SHADER_INFNAN");
+        return env ? env[0] - '0' : 2;
+    }();
+    if (infnan_mode == 0 ||
+        (infnan_mode == 1 && (ctx.info.hw_stage == HwStage::Fragment ||
+                              ctx.info.hw_stage == HwStage::Compute))) {
+        return;
+    }
     if (profile.support_fp16_signed_zero_inf_nan_preserve ||
         profile.support_fp32_signed_zero_inf_nan_preserve ||
         profile.support_fp64_signed_zero_inf_nan_preserve) {

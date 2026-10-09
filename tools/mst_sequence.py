@@ -52,7 +52,7 @@ def main():
             continue
         gap = (a - previous_end) / 1e6 if previous_end is not None else 0
         previous_end = max(previous_end or 0, b)
-        name = short(labels.get(e) or f'[{kinds.get(e, "?")}]')
+        name = short(f'[{kinds.get(e, "?")}] ' + labels.get(e, ''))
         print(f'{(a - t0) / 1e6:9.3f} ms  {gpu[e] / 1e6:6.3f} ms  gap {gap:6.3f}  {name[:150]}')
 
 

@@ -279,6 +279,9 @@ private:
     void UpdateColorBlendingState(const GraphicsPipeline* pipeline) const;
 
     bool FilterDraw();
+    u32 ExpandRects(const GraphicsPipeline* pipeline, bool is_indexed, u32 index_offset);
+    static bool SkipsEmptyDraws();
+    bool IsEmptyDraw(const GraphicsPipeline* pipeline) const;
     bool FilterDrawPasses() const;
     /// Everything of a direct draw after the pipeline selection (GPU thread or stage B).
     void DrawRecord(const GraphicsPipeline* pipeline, const PreparedDraw* used_prepared,
@@ -508,6 +511,13 @@ private:
         VertexInputs<vk::DeviceSize> host_strides;
         u32 num_buffers = 0;
     } vertex_binds;
+    /// ExpandRects' scratch: guest vertex per rect corner, corner order and 4th-corner weights.
+    struct RectCorners {
+        std::array<u8, 3> order;
+        std::array<float, 3> weight;
+    };
+    std::vector<u32> rect_vertex_ids;
+    std::vector<RectCorners> rect_corners;
     struct IndexBind {
         vk::Buffer handle;
         u64 offset;
