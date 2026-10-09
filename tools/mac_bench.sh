@@ -26,7 +26,7 @@ alive() { kill -0 "$launcher" 2>/dev/null || pgrep -x bb-probe > /dev/null; }
 # Title: the pad is open and a few frame stats windows went by.
 for i in $(seq 1 ${BOOT_WAIT:-240}); do
     sleep 1
-    [[ $(grep -c '^Frame stats' "$base.log") -ge 3 ]] && grep -q 'pad opened' "$base.log" && break
+    [[ $(grep -c '^Frame stats' "$base.log") -ge ${BOOT_WINDOWS:-3} ]] && grep -q 'pad opened' "$base.log" && break
     (( i > 20 )) && ! alive && fail "the game exited before the title"
 done
 sleep "${TITLE_WAIT:-6}"

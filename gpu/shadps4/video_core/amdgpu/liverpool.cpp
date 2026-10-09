@@ -1492,12 +1492,28 @@ Liverpool::Task Liverpool::ProcessGraphics(std::span<const u32> dcb, std::span<c
                 ASSERT(write_data->dst_sel.Value() == 2 || write_data->dst_sel.Value() == 5);
                 ASSERT(!write_data->wr_one_addr.Value());
                 if (rasterizer) {
-                    // In order with the draws (on the draw recording thread when in use).
+                    // In order with the draws: here, after the draws before it are recorded.
+                    // On the draw recording thread (BB_PIPELINED_WRITE_DATA=1), draws after it
+                    // were prepared with the memory as it was before the write: the game's
+                    // constants written this way (cutscene fades, depth of field) were read
+                    // stale, flashing and leaving ghosted images.
+                    static const bool pipelined_write_data = [] {
+                        const char* env = std::getenv("BB_PIPELINED_WRITE_DATA");
+                        return env && env[0] == '1';
+                    }();
                     BbWriteLog::NoteIntent(write_data->Address<u64>(), write_data->data,
                                            (count - 2) * sizeof(u32),
                                            BbWriteLog::WriteDataIntent);
-                    if (rasterizer->RunInOrder(&RunWriteData, header, (count + 1) * sizeof(u32),
-                                               BbToggle::PipelinedMemoryWrites, false)) {
+                    bool queued = false;
+                    if (pipelined_write_data) {
+                        queued = rasterizer->RunInOrder(&RunWriteData, header,
+                                                        (count + 1) * sizeof(u32),
+                                                        BbToggle::PipelinedMemoryWrites, false);
+                    } else {
+                        rasterizer->DrainDrawPipe(static_cast<u32>(opcode));
+                        RunWriteData(*rasterizer, reinterpret_cast<const u8*>(header));
+                    }
+                    if (queued) {
                         NotePendingWrite(*write_data, (count - 2) * sizeof(u32));
                         rasterizer->NotePendingGpuWrite(write_data->Address<VAddr>(),
                                                         (count - 2) * sizeof(u32));
