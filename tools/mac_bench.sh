@@ -16,7 +16,8 @@ pkill -x bb-probe; sleep 1; pkill -9 -x bb-probe
 env BB_GAME_DIR="${BB_GAME_DIR:-$HOME/Downloads/PS4/Bloodborne/CUSA03173}" \
     BB_PAD_FILE="$PWD/out/pad" BB_TOGGLE_FILE="$PWD/out/toggles" BB_FRAME_STATS=1 \
     BB_FRAME_LOG="$PWD/$base.frames.csv" BB_FPS_LIMIT="${BB_FPS_LIMIT:-0}" \
-    BB_PRESENT_DUMP_TRIGGER="$PWD/out/grab.trigger" BB_DUMP_DIR="$PWD/out/grab" "$@" \
+    BB_PRESENT_DUMP_TRIGGER="$PWD/out/grab.trigger" BB_SCREEN_DUMP_TRIGGER="$PWD/out/screen.trigger" \
+    BB_MENU_TRIGGER="$PWD/out/menu.trigger" BB_DUMP_DIR="$PWD/out/grab" "$@" \
     bash run.sh > "$base.log" 2>&1 < /dev/null &
 launcher=$!
 fail() { echo "FAILED: $*  ($base.log)"; tail -20 "$base.log"; kill "$launcher" 2>/dev/null; pkill -x bb-probe; exit 1; }

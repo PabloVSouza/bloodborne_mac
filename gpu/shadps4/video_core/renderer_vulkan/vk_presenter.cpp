@@ -524,15 +524,16 @@ Frame* Presenter::PrepareBlankFrame(bool present_thread) {
 // bbport BB_PRESENT_DUMP_TRIGGER (when the upscaler does not own the display): the presented
 // frame (layout General here) is written to BB_DUMP_DIR as fNNN_present_<w>x<h>_<fmt>.raw once the
 // file named by the trigger exists (tools/grab.sh): the game's own picture, no screen capture.
-void Presenter::GrabFrame(Scheduler& scheduler, vk::CommandBuffer cmdbuf, const Frame* frame) {
-    static const char* trigger = std::getenv("BB_PRESENT_DUMP_TRIGGER");
+namespace {
+// Copies a color image (in `layout`) to BB_DUMP_DIR/fNNN_<tag>_<w>x<h>_<fmt>.raw once the
+// commands ran (tools/raw2png.py converts it).
+void DumpColorImage(const Instance& instance, Scheduler& scheduler, vk::CommandBuffer cmdbuf,
+                    vk::Image image, vk::ImageLayout layout, u32 width, u32 height,
+                    vk::Format format, const char* tag) {
     static int index = 0;
-    if (!trigger || std::remove(trigger) != 0) {
-        return;
-    }
     const char* dir_env = std::getenv("BB_DUMP_DIR");
     const std::string dir{dir_env && dir_env[0] ? dir_env : "out/dump"};
-    const VkDeviceSize size = VkDeviceSize(frame->width) * frame->height * 4;
+    const VkDeviceSize size = VkDeviceSize(width) * height * 4;
     const VkBufferCreateInfo buffer_ci{.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
                                        .size = size,
                                        .usage = VK_BUFFER_USAGE_TRANSFER_DST_BIT};
@@ -551,13 +552,12 @@ void Presenter::GrabFrame(Scheduler& scheduler, vk::CommandBuffer cmdbuf, const 
     cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
                            vk::PipelineStageFlagBits::eTransfer, {}, barrier, {}, {});
     const vk::BufferImageCopy region{.imageSubresource = {vk::ImageAspectFlagBits::eColor, 0, 0, 1},
-                                     .imageExtent = {frame->width, frame->height, 1}};
-    cmdbuf.copyImageToBuffer(frame->image, vk::ImageLayout::eGeneral, buffer, region);
-    const vk::Format format = swapchain.GetSurfaceFormat().format;
+                                     .imageExtent = {width, height, 1}};
+    cmdbuf.copyImageToBuffer(image, layout, buffer, region);
     const bool bgra = format == vk::Format::eB8G8R8A8Unorm || format == vk::Format::eB8G8R8A8Srgb;
     char path[512];
-    std::snprintf(path, sizeof(path), "%s/f%03d_present_%ux%u_%s.raw", dir.c_str(), index++,
-                  frame->width, frame->height, bgra ? "bgra" : "rgba");
+    std::snprintf(path, sizeof(path), "%s/f%03d_%s_%ux%u_%s.raw", dir.c_str(), index++, tag,
+                  width, height, bgra ? "bgra" : "rgba");
     scheduler.DeferPriorityOperation([allocator = instance.GetAllocator(), buffer, allocation,
                                       info, size, file = std::string{path}] {
         vmaInvalidateAllocation(allocator, allocation, 0, VK_WHOLE_SIZE);
@@ -567,6 +567,46 @@ void Presenter::GrabFrame(Scheduler& scheduler, vk::CommandBuffer cmdbuf, const 
         }
         vmaDestroyBuffer(allocator, buffer, allocation);
     });
+}
+} // namespace
+
+void Presenter::GrabFrame(Scheduler& scheduler, vk::CommandBuffer cmdbuf, const Frame* frame) {
+    static const char* trigger = std::getenv("BB_PRESENT_DUMP_TRIGGER");
+    if (!trigger || std::remove(trigger) != 0) {
+        return;
+    }
+    DumpColorImage(instance, scheduler, cmdbuf, frame->image, vk::ImageLayout::eGeneral,
+                   frame->width, frame->height, swapchain.GetSurfaceFormat().format, "present");
+}
+
+// bbport BB_SCREEN_DUMP_TRIGGER: the window's image as presented (in ePresentSrcKHR), with the
+// settings menu and FPS counter over the frame, written like GrabFrame's (fNNN_screen_...).
+void Presenter::GrabScreen(Scheduler& scheduler, vk::CommandBuffer cmdbuf, vk::Image image,
+                           vk::Extent2D extent) {
+    static const char* trigger = std::getenv("BB_SCREEN_DUMP_TRIGGER");
+    if (!trigger || std::remove(trigger) != 0) {
+        return;
+    }
+    const vk::ImageSubresourceRange range{vk::ImageAspectFlagBits::eColor, 0, 1, 0, 1};
+    const auto transition = [&](vk::ImageLayout from, vk::ImageLayout to, vk::AccessFlags src,
+                                vk::AccessFlags dst) {
+        const vk::ImageMemoryBarrier barrier{.srcAccessMask = src,
+                                             .dstAccessMask = dst,
+                                             .oldLayout = from,
+                                             .newLayout = to,
+                                             .srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                             .dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+                                             .image = image,
+                                             .subresourceRange = range};
+        cmdbuf.pipelineBarrier(vk::PipelineStageFlagBits::eAllCommands,
+                               vk::PipelineStageFlagBits::eAllCommands, {}, {}, {}, barrier);
+    };
+    transition(vk::ImageLayout::ePresentSrcKHR, vk::ImageLayout::eTransferSrcOptimal,
+               vk::AccessFlagBits::eMemoryWrite, vk::AccessFlagBits::eTransferRead);
+    DumpColorImage(instance, scheduler, cmdbuf, image, vk::ImageLayout::eTransferSrcOptimal,
+                   extent.width, extent.height, swapchain.GetSurfaceFormat().format, "screen");
+    transition(vk::ImageLayout::eTransferSrcOptimal, vk::ImageLayout::ePresentSrcKHR,
+               vk::AccessFlagBits::eTransferRead, vk::AccessFlagBits::eNone);
 }
 
 void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame) {
@@ -707,6 +747,7 @@ void Presenter::Present(Frame* frame, bool is_reusing_frame, bool is_game_frame)
                                    vk::PipelineStageFlagBits::eBottomOfPipe,
                                    vk::DependencyFlagBits::eByRegion, {}, {}, to_present);
         }
+        GrabScreen(scheduler, cmdbuf, swapchain_image, extent);
     }
     if (EmulatorSettings.IsVkHostMarkersEnabled()) {
         cmdbuf.endDebugUtilsLabelEXT();

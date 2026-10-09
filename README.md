@@ -1,7 +1,23 @@
 # bloodborne_mac — Bloodborne on macOS (Apple Silicon)
 
-A macOS port of *Bloodborne* for PlayStation 4 (CUSA03173, game version 1.09) that runs
-**natively on Apple Silicon**, without Rosetta 2.
+A macOS port of *Bloodborne* for PlayStation 4 (game version 1.09) that runs **natively on Apple
+Silicon**, without Rosetta 2, with a launcher app and an in-game settings menu.
+
+<p align="center">
+  <img src="docs/screenshots/title.jpg" alt="The title screen" width="98%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/game.jpg" alt="Bloodborne running on an Apple M3 Pro" width="49%">
+  <img src="docs/screenshots/game-menu.jpg" alt="The in-game settings menu" width="49%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/launcher-home.png" alt="Launcher: home" width="49%">
+  <img src="docs/screenshots/launcher-graphics.png" alt="Launcher: graphics" width="49%">
+</p>
+<p align="center">
+  <img src="docs/screenshots/launcher-controls.png" alt="Launcher: controls" width="49%">
+  <img src="docs/screenshots/launcher-mods.png" alt="Launcher: mods" width="49%">
+</p>
 
 This is a fork of [**deadinside28/bloodborne_pc**](https://github.com/deadinside28/bloodborne_pc)
 (*bbport*, a native Linux port of the game), which in turn builds its renderer on
@@ -14,7 +30,8 @@ the game's code can run on Apple Silicon. The upstream README is kept in
 > This project is not affiliated with shadPS4, Sony Interactive Entertainment, FromSoftware or
 > AMD. Please do not report problems with this fork to shadPS4 or to the upstream project.
 >
-> **No game files are included.** You need your own dump of Bloodborne (CUSA03173, v1.09).
+> **No game files are included.** You need your own dump of Bloodborne with the 1.09 update
+> (see [Game versions](#game-versions)).
 
 **Status: experimental, playable.** The game boots, loads saves and plays with sound, gamepad and
 saving. Only one machine has been tested: an Apple M3 Pro (18-core GPU, 18 GB) on macOS 27.
@@ -34,7 +51,19 @@ saving. Only one machine has been tested: an Apple M3 Pro (18-core GPU, 18 GB) o
   Mesa's KosmicKrisp driver can be used instead (`BB_VK_DRIVER=kosmickrisp`, macOS 26+), but it
   is much slower today.
 - **Upscaling:** FSR 3.1 renders the game below the output resolution and reconstructs the output
-  (in-game menu: *Insert* or *L3+R3*).
+  (in-game menu: *F1* or *L3+R3*).
+
+## Game versions
+
+The port runs the game's 1.09 executable: hooks and patches use its addresses. It is tested with
+**CUSA03173** (Europe, Game of the Year edition). Other editions and regions (CUSA00207,
+CUSA00900, CUSA03023, ...) work when their 1.09 executable is the same one: the launcher and
+`run.sh` compare the executable's loaded image, not the title ID, and say what is wrong otherwise
+(base game without the update, an update whose `eboot.bin` was not copied, another build).
+
+The launcher's home tab shows the dump's title ID, region and version, and whether **The Old
+Hunters** is included. It is part of the Game of the Year editions (CUSA03173, CUSA03023). Other
+editions sell it as an add-on, and the port does not load add-on packages yet.
 
 ## Performance
 
@@ -53,17 +82,19 @@ by the GPU. What was measured and changed, and what could still be gained:
 
 [**Download Bloodborne for Apple Silicon**](https://github.com/PabloVSouza/bloodborne_mac/releases/latest)
 (a DMG with `Bloodborne.app`, built by GitHub Actions from this repository). Drag it to
-Applications, open it, choose your game folder (CUSA03173, v1.09) and press **Play**. Nothing else
+Applications, open it, choose your game folder (your dump, v1.09) and press **Play**. Nothing else
 is needed: the app carries its own runtime. Its launcher has tabs for graphics, controls
 (controller choice and button mapping for controller and keyboard), game options and effects,
-mods (load order), third-party patches, advanced options and the game's log, in the game's 20
-languages. The app is not signed with an Apple Developer ID, so
+mods (load order), third-party patches, advanced options and the game's log. The launcher and the
+in-game menu are in the game's 20 languages (the menu follows the launcher's language), and the
+game itself can run in any of them, Portuguese included. The app is not signed with an Apple
+Developer ID, so
 the first time right-click it and choose **Open** (or *System Settings → Privacy & Security →
 Open Anyway*).
 
 Saves, the shader cache, settings and logs are kept in
 `~/Library/Application Support/bloodborne_mac`. Settings are shared with the in-game menu
-(*Insert* or *L3+R3*).
+(*F1* or *L3+R3*).
 
 ## Building from source
 
@@ -73,8 +104,8 @@ Requirements:
 - A Mac with Apple Silicon (playing needs only that and macOS 13+). macOS 15 or newer is recommended (GPU memory residency sets).
 - Xcode Command Line Tools and [Homebrew](https://brew.sh):
   `brew install bash pkgconf glslang nasm cmake ninja`.
-- Your decrypted game dump: the `CUSA03173` folder at version 1.09 (copy a dumped update over the
-  base game, replacing files).
+- Your decrypted game dump at version 1.09 (copy a dumped update over the base game, replacing
+  files).
 
 ```bash
 git clone --recursive https://github.com/PabloVSouza/bloodborne_mac.git && cd bloodborne_mac
@@ -102,7 +133,8 @@ Apple GPUs.
 Useful variables: `BB_FRAME_STATS=1` (frame statistics in the log), `BB_GAME_DIR`,
 `BB_RENDER_RES=WxH` with `BB_OUTPUT_RES=WxH` (render and output size), `BB_UPSCALER=fsr3|off`,
 `BB_VK_DRIVER=kosmickrisp`. Developer tools for macOS (benchmark harness, Metal trace analysis):
-`tools/mac_bench.sh`, `tools/mst_*.py`.
+`tools/mac_bench.sh`, `tools/mst_*.py`, and `tools/grab.sh` (the game's own frame as PNG;
+`--screen` includes the menu, which `out/menu.trigger` opens).
 
 ## Known issues
 

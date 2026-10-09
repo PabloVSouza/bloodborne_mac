@@ -36,3 +36,5 @@ patches.json
 
 # The launcher's app icons (tracked despite *.png above)
 !launcher/app/src-tauri/icons/*.png
+# README screenshots
+!docs/screenshots/*.png
