@@ -1,7 +1,8 @@
 # Local changes to gpu/third_party/fsr-vulkan
 
 The submodule points at upstream FireBurn/FSR-Vulkan (`c64f093`). `build.sh` applies the
-patches here to its working tree when they are not applied yet:
+patches here to its working tree when they are not applied yet (not on macOS, where FSR 4 is
+unavailable and the submodule is left as upstream has it):
 
 - `0001-...`: `BB_FSR4_PROFILE` (GPU time per FSR 4 pass) and `BB_FSR4_STATS` (driver
   statistics of each pass) in the FSR 4 v07 provider.

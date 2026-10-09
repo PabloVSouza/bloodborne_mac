@@ -58,15 +58,18 @@ if [[ -z $pgo ]]; then
 fi
 mkdir -p pgo
 # Submodules (git clone --recursive, or: git submodule update --init) and this port's changes
-# to FSR-Vulkan (gpu/patches/fsr-vulkan), applied to its working tree once.
+# to FSR-Vulkan (gpu/patches/fsr-vulkan), applied to its working tree once. Not on macOS: they
+# only instrument the FSR 4 provider, which Apple GPUs cannot run (the submodule stays clean).
 if [[ ! -f gpu/third_party/fsr-vulkan/CMakeLists.txt || ! -f gpu/third_party/imgui/imgui.h ]]; then
     git submodule update --init --recursive
 fi
-for patch in gpu/patches/fsr-vulkan/*.patch; do
-    if ! git -C gpu/third_party/fsr-vulkan apply --reverse --check "$PWD/$patch" 2>/dev/null; then
-        git -C gpu/third_party/fsr-vulkan apply "$PWD/$patch"
-    fi
-done
+if (( ! macos )); then
+    for patch in gpu/patches/fsr-vulkan/*.patch; do
+        if ! git -C gpu/third_party/fsr-vulkan apply --reverse --check "$PWD/$patch" 2>/dev/null; then
+            git -C gpu/third_party/fsr-vulkan apply "$PWD/$patch"
+        fi
+    done
+fi
 cmake_platform=()
 gpudir=out/gpu
 if (( macos )) && [[ $macarch == arm64 ]]; then gpudir=out/gpu-arm64; fi
