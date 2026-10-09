@@ -49,24 +49,29 @@ The frame rate is uncapped by default (community frame-time patch). At 1080p the
 by the GPU. What was measured and changed, and what could still be gained:
 [docs/MACOS_PERFORMANCE.md](docs/MACOS_PERFORMANCE.md).
 
-## Requirements
+## Download
 
-- A Mac with Apple Silicon. macOS 15 or newer is recommended (GPU memory residency sets).
+[**Download Bloodborne for Apple Silicon**](https://github.com/PabloVSouza/bloodborne_mac/releases/latest)
+(a DMG with `Bloodborne.app`, built by GitHub Actions from this repository). Drag it to
+Applications, open it, choose your game folder (CUSA03173, v1.09) and press **Play**. Nothing else
+is needed: the app carries its own runtime. The app is not signed with an Apple Developer ID, so
+the first time right-click it and choose **Open** (or *System Settings → Privacy & Security →
+Open Anyway*).
+
+Saves, the shader cache, settings and logs are kept in
+`~/Library/Application Support/bloodborne_mac`. Settings are shared with the in-game menu
+(*Insert* or *L3+R3*).
+
+## Building from source
+
+Requirements:
+
+
+- A Mac with Apple Silicon (playing needs only that and macOS 13+). macOS 15 or newer is recommended (GPU memory residency sets).
 - Xcode Command Line Tools and [Homebrew](https://brew.sh):
   `brew install bash pkgconf glslang nasm cmake ninja`.
 - Your decrypted game dump: the `CUSA03173` folder at version 1.09 (copy a dumped update over the
   base game, replacing files).
-
-## Download
-
-Prebuilt packages for Apple Silicon are on the
-[releases page](https://github.com/PabloVSouza/bloodborne_mac/releases) (built by GitHub Actions,
-`.github/workflows/macos.yml`). Unpack and double-click `play.command`; it asks for the game
-folder once. You still need Homebrew's bash and Python 3 (`brew install bash python`). The
-package is not notarized: if macOS blocks it, run `xattr -dr com.apple.quarantine .` in the
-unpacked folder.
-
-## Build and run
 
 ```bash
 git clone --recursive https://github.com/PabloVSouza/bloodborne_mac.git && cd bloodborne_mac
@@ -75,7 +80,8 @@ BB_GAME_DIR=/path/to/CUSA03173 bash run.sh
 ```
 
 `build.sh` builds the native arm64 program on Apple Silicon (`BB_ARCH=x86_64` builds the older
-Rosetta 2 one). The first build compiles the dependencies (MoltenVK, SDL3, FFmpeg, ...) into
+Rosetta 2 one); `bash packaging/macos.sh` then builds `Bloodborne.app` and its DMG into `dist/`
+(the Swift launcher in `launcher/macos/` needs Xcode). The first build compiles the dependencies (MoltenVK, SDL3, FFmpeg, ...) into
 `deps/` and takes a while; the first launch, and the first launch after an update that changes
 the shader cache format, compiles the game's shaders.
 

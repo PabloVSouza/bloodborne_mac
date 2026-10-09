@@ -1,4 +1,5 @@
-# Builds the native Apple Silicon program and packages it (packaging/macos.sh).
+# Builds the native Apple Silicon program and packages it as Bloodborne.app in a DMG
+# (packaging/macos.sh).
 # Every push to main and every pull request: the package as a workflow artifact.
 # A tag v* (git tag v0.1.0 && git push origin v0.1.0): a GitHub release with the package.
 name: macOS
@@ -54,7 +55,7 @@ jobs:
         run: |
           if [[ $GITHUB_REF == refs/tags/v* ]]; then export BB_VERSION=${GITHUB_REF_NAME}; fi
           bash packaging/macos.sh
-          echo "PACKAGE=$(ls dist/bloodborne_mac-*.tar.gz)" >> "$GITHUB_ENV"
+          echo "PACKAGE=$(ls dist/bloodborne_mac-*.dmg)" >> "$GITHUB_ENV"
 
       - uses: actions/upload-artifact@v4
         with:
@@ -68,12 +69,13 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           cat > notes.md <<'EOF'
-          Native Apple Silicon build of bloodborne_mac. **No game files are included**: you need your
-          own dump of Bloodborne (CUSA03173, v1.09).
+          Bloodborne for Apple Silicon: open the DMG and drag **Bloodborne** to Applications.
+          Nothing else to install. **No game files are included**: you need your own dump of
+          Bloodborne (CUSA03173, v1.09).
 
-          Unpack, then double-click `play.command` (see `RELEASE.txt` inside). Needs Homebrew's bash
-          and Python 3 (`brew install bash python`). If macOS blocks it, run
-          `xattr -dr com.apple.quarantine .` in the unpacked folder.
+          The app is not signed with an Apple Developer ID: the first time, right-click it and
+          choose **Open** (or System Settings → Privacy & Security → Open Anyway). See
+          `First start.txt` in the DMG.
           EOF
           gh release create "$GITHUB_REF_NAME" "$PACKAGE" --title "bloodborne_mac $GITHUB_REF_NAME" \
             --notes-file notes.md --generate-notes

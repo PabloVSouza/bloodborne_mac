@@ -41,6 +41,11 @@ ZYDIS_VERSION=v4.1.1
 XXHASH_VERSION=v0.8.3
 BOOST_VERSION=1.89.0
 FFMPEG_VERSION=n7.1.2
+# The app bundle's own runtime (packaging/macos.sh): run.sh needs bash 4.4+, the start-up
+# scripts Python 3; neither is left to the user's system.
+BASH_VERSION_APP=5.3
+PYTHON_STANDALONE=20261003/cpython-3.13.16+20261003
+PYTHON_SHA256_ARM64=9e01f63bbb08576cd9c8bc2d0564d098cb30c8453a0cd4bcf6aef458f6d2a147
 
 jobs=$(sysctl -n hw.ncpu)
 export MACOSX_DEPLOYMENT_TARGET=13.0
@@ -169,5 +174,33 @@ if needed ffmpeg; then
         --install-name-dir="$prefix/lib" >/dev/null &&
         make -j "$jobs" >/dev/null && make install >/dev/null)
     mark ffmpeg
+fi
+# bash for the app bundle: only system libraries (no readline or gettext from Homebrew).
+if needed app-bash; then
+    echo "== app-bash"
+    fetch app-bash "https://ftp.gnu.org/gnu/bash/bash-$BASH_VERSION_APP.tar.gz"
+    (cd "$work/src/app-bash" && CFLAGS="-arch $arch -O2 -mmacosx-version-min=$MACOSX_DEPLOYMENT_TARGET" \
+        ./configure --prefix="$prefix/app-runtime" --host=$([[ $arch == arm64 ]] && echo aarch64 || echo x86_64)-apple-darwin \
+        --disable-nls --without-bash-malloc --disable-readline --enable-static-link=no >/dev/null &&
+        make -j "$jobs" >/dev/null)
+    mkdir -p "$prefix/app-runtime/bin"
+    install -m755 "$work/src/app-bash/bash" "$prefix/app-runtime/bin/bash"
+    mark app-bash
+fi
+# Python for the app bundle: python-build-standalone (relocatable, stripped), checksummed.
+if needed app-python; then
+    echo "== app-python"
+    [[ $arch == arm64 ]] || { echo 'app-python: arm64 only' >&2; exit 1; }
+    archive=$work/app-python.tar.gz
+    [[ -f $archive ]] || curl -fsSL --retry 3 -o "$archive" \
+        "https://github.com/astral-sh/python-build-standalone/releases/download/${PYTHON_STANDALONE/+/%2B}-aarch64-apple-darwin-install_only_stripped.tar.gz"
+    echo "$PYTHON_SHA256_ARM64  $archive" | shasum -a 256 -c - >/dev/null
+    rm -rf "$prefix/app-runtime/python"; mkdir -p "$prefix/app-runtime"
+    tar -xf "$archive" -C "$prefix/app-runtime" # python/
+    # What the start-up scripts never use.
+    (cd "$prefix/app-runtime/python/lib/python3."* && rm -rf test idlelib tkinter turtledemo ensurepip \
+        lib2to3 pydoc_data unittest/test sqlite3/test ctypes/test lib-dynload/_tkinter*)
+    rm -rf "$prefix/app-runtime/python/include" "$prefix/app-runtime/python/share"
+    mark app-python
 fi
 echo "Dependencies are in $prefix"
