@@ -88,8 +88,8 @@ jobs:
           cat > notes.md <<'EOF'
           Bloodborne for Apple Silicon: open the DMG and drag **Bloodborne** to Applications.
           Nothing else to install. **No game files are included**: you need your own dump of
-          Bloodborne with the 1.09 update (tested with CUSA03173; see "Game versions" in the
-          README).
+          Bloodborne with the 1.09 update: see
+          [Game files](https://github.com/PabloVSouza/bloodborne_mac/blob/main/docs/guide/game-files.md).
 
           The app is not signed with an Apple Developer ID: the first time, right-click it and
           choose **Open** (or System Settings → Privacy & Security → Open Anyway). See
