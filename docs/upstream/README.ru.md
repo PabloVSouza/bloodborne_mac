@@ -1,3 +1,7 @@
+> **README исходного проекта, сохранён для справки.** Это README оригинального проекта для Linux,
+> [deadinside28/bloodborne_pc](https://github.com/deadinside28/bloodborne_pc) (bbport), на момент
+> форка. Порт для macOS / Apple Silicon описан в [основном README](../../README.md) (на английском).
+
 ДАННЫЙ ПРОЕКТ НЕ ИМЕЕТ ОТНОШЕНИЯ К SHADPS4. ВСЕ ВОПРОСЫ, СВЯЗАННЫЕ С ЭТИМ ПРОЕКТОМ - ПИШИТЕ НА ДИСКОРД СЕРВЕР https://discord.gg/KYZRKk9CB, А НЕ НА СЕРВЕР SHADPS4
 
 # bbport — нативный порт Bloodborne для Linux
@@ -152,7 +156,7 @@ Turing). Вывод 1080p и TAA всегда идут живым путём.
 **Моды:** лаунчер подключает распакованные моды из отдельных папок (с `dvdroot_ps4/`, с лишней
 папкой-обёрткой или сразу с папками игры вроде `chr/`; регистр имён не важен), с переключателями
 и порядком загрузки. **Сторонние патчи:** XML-файлы в формате shadPS4 в папке `patches/` каталога
-данных, включаются в лаунчере. Подробнее — [моды и патчи](docs/MODS.md).
+данных, включаются в лаунчере. Подробнее — [моды и патчи](../MODS.md).
 
 **Язык лаунчера:** русский или английский (по умолчанию — как в системе).
 
@@ -241,8 +245,8 @@ VRAM, GTT, RSS, текстуры и блоки памяти игры в VRAM), `
 `BB_PAD_RECORD=файл` / `BB_PAD_REPLAY=файл` (запись маршрута по F9 и его повтор в тестах),
 `BB_GC_BUDGET_MB=N` (бюджет кэша текстур, как на встроенных GPU), `BB_PRESENT_DUMP_TRIGGER=файл`
 с `BB_PRESENT_DUMP_COUNT=N` (снимок N показанных кадров подряд).
-Подробнее — в [docs/](docs); последние изменения — [docs/CHANGES_2026-10-02.md](docs/CHANGES_2026-10-02.md),
-[docs/CHANGES_2026-10-03.md](docs/CHANGES_2026-10-03.md), [docs/CHANGES_2026-10-06.md](docs/CHANGES_2026-10-06.md).
+Подробнее — в [docs/](..); последние изменения — [docs/CHANGES_2026-10-02.md](../CHANGES_2026-10-02.md),
+[docs/CHANGES_2026-10-03.md](../CHANGES_2026-10-03.md), [docs/CHANGES_2026-10-06.md](../CHANGES_2026-10-06.md).
 
 ## Устройство репозитория
 
@@ -255,7 +259,7 @@ VRAM, GTT, RSS, текстуры и блоки памяти игры в VRAM), `
 | `patches/` | Патчи сообщества для Bloodborne |
 | `tools/` | Утилиты разработчика: скриптовые запуски, A/B-переключатели, бенчмарк FSR, переписывание шейдеров FSR 4, `fsr4cap` (запись и извлечение FSR 4.1.1) |
 | `tests/` | Тесты загрузчика, рантайма, патчей и рендерера |
-| `docs/` | Заметки и замеры ([апскейлер](docs/upscaler.md), [многопоточный GPU](docs/parallel_gpu.md), [векторы движения](docs/motion_vectors.md), [план](docs/ROADMAP.md), [журнал разработки](docs/DEVELOPMENT_LOG.ru.md)) |
+| `docs/` | Заметки и замеры ([апскейлер](../upscaler.md), [многопоточный GPU](../parallel_gpu.md), [векторы движения](../motion_vectors.md), [план](../ROADMAP.md), [журнал разработки](../DEVELOPMENT_LOG.ru.md)) |
 
 Тесты: `bash build.sh --test`, `python3 -m unittest discover -s tests` и
 `ninja -C out/gpu motion-history-test ui-composition-test scene-resolution-test motion-shader-test`.
@@ -280,7 +284,7 @@ VRAM, GTT, RSS, текстуры и блоки памяти игры в VRAM), `
 
 ## Благодарности и лицензии
 
-bbport распространяется по **GNU GPL v2 или новее** ([LICENSE](LICENSE)) — в нём код shadPS4
+bbport распространяется по **GNU GPL v2 или новее** ([LICENSE](../../LICENSE)) — в нём код shadPS4
 (GPL-2.0-or-later). Сторонние компоненты сохраняют свои лицензии:
 видеоядро и рекомпилятор шейдеров [shadPS4](https://github.com/shadps4-emu/shadPS4) (GPL-2.0+),
 [sirit](https://github.com/shadps4-emu/sirit), [half](https://half.sourceforge.net/),

@@ -39,6 +39,39 @@ only through imports the runtime already implements), no self-modifying code, on
    memory ordering mode), checked against the interpreter.
 4. Performance: translation cache across runs, hot paths.
 
-## Status
+## Status (2026-10-09)
 
-- Stage 1: in progress.
+- Stages 1–3 done: the native arm64 build is the default on Apple Silicon (`build.sh`, `run.sh`;
+  `BB_ARCH=x86_64` builds the Rosetta 2 one). The game boots, loads saves and plays.
+- The JIT (`src/cpu/jit_arm64.c`) translates the integer, SSE/AVX and atomic
+  instructions the game uses; anything else runs in the interpreter, in-block where possible.
+  - Guest registers in host registers; xmm0–15 low halves in v16–v31 (upper ymm halves in memory).
+  - Flags: per-flag liveness, looking into the next block; flags are dead across call/ret
+    (`BB_JIT_FLAGS_ABI=0` turns that off).
+  - x86-TSO: loads and stores with acquire/release (ldapr/stlr); misaligned accesses take an
+    out-of-line slow path. Locked operations use LSE atomics between full barriers.
+  - `rdtsc` reads the arm64 virtual counter, scaled to the PS4 clock.
+- Performance: the game is GPU-bound at 1080p; the main guest thread is ~85% busy. Memory
+  ordering showed no measurable cost (`BB_JIT_UNORDERED`, measurement only).
+
+## Verification
+
+- `tools/cpu/fuzz_jit.sh FILE`: each instruction run translated and interpreted with random
+  inputs, results compared. `FILE` comes from `tools/cpu/encodings.c` (all encodings in
+  `out/eboot.elf`) or from a game run with `BB_JIT_DUMP=file`.
+- `tests/test_a64.c`: the emitter's encodings against the system assembler.
+- `tools/cpu/test_jit.sh`: translator unit tests.
+
+## Debugging switches
+
+`BB_JIT_DENY=tokens` (interpret chosen instruction kinds), `BB_JIT_MAP=file` (guest block → host
+code map, for `tools/sample_guest.py` with macOS `sample`), `BB_JIT_DUMP=file` (instructions seen).
+
+## Pitfalls found
+
+- 16 KiB host pages: the GPU write tracker uses 16 KiB pages (`TRACKER_PAGE_BITS=14`).
+- The native address space reserves 0x180000000–0x7000000000 (shared region): the guest lives
+  above 0x8000000000.
+- A heap panic during save load ("DLRegularHeap.cpp(710) improper or freed") appeared while
+  vector code was much slower than integer code and vanished once both were translated: a race
+  in the game exposed by uneven thread speeds, not a translation error (the fuzzer found none).
