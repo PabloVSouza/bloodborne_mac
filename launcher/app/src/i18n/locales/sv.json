@@ -1,0 +1,105 @@
+{
+  "app": { "name": "Bloodborne", "tagline": "för Apple Silicon", "version": "v{{version}}" },
+  "nav": { "home": "Hem", "graphics": "Grafik", "controls": "Kontroller", "game": "Spel", "mods": "Moddar", "patches": "Patchar", "advanced": "Avancerat", "log": "Logg" },
+  "play": {
+    "play": "Spela", "stop": "Stoppa", "running": "Körs",
+    "started": "Spelet startar. Första starten kompilerar spelets shaders och tar några minuter.",
+    "failedToStart": "Spelet startade inte", "failedToStop": "Kunde inte stoppa spelet",
+    "exitedWithError": "Spelet avslutades med ett fel", "exitCode": "Avslutskod {{code}}: se fliken Logg."
+  },
+  "common": {
+    "choose": "Välj…", "showInFinder": "Visa i Finder", "useDefault": "Använd standardmappen", "refresh": "Uppdatera",
+    "reset": "Återställ", "default": "Standard", "custom": "Anpassad", "on": "På", "off": "Av", "auto": "Automatiskt",
+    "notAssigned": "Inte tilldelad", "saveFailed": "Kunde inte spara", "restartNote": "Gäller från nästa start."
+  },
+  "home": {
+    "title": "Jaga natten", "subtitle": "Bloodborne, nativt på Apple Silicon.", "gameFolder": "Spel",
+    "gameFolderHint": "Din kopia av Bloodborne: mappen CUSA03173, version 1.09.", "checking": "Kontrollerar spelet…", "ready": "Redo att spela",
+    "noFolder": "Välj spelmappen (CUSA03173).", "summary": "Översikt", "upscaler": "Uppskalare", "renderSize": "Renderar i {{size}}",
+    "frameRate": "Bildfrekvens", "controller": "Handkontroll", "mods": "Moddar",
+    "modsActive": "{{count}} aktiva", "modsActive_one": "{{count}} aktiv", "modsActive_other": "{{count}} aktiva", "modsOff": "Av",
+    "firstStart": "Första starten kompilerar spelets shaders och tar därför några minuter. Senare starter går fort.",
+    "lastRun": "Senaste sessionen", "lastRunOk": "Spelet stängdes normalt.", "lastRunError": "Spelet avslutades med avslutskod {{code}}.",
+    "openData": "Sparfiler och data"
+  },
+  "graphics": {
+    "title": "Grafik", "subtitle": "Delas med menyn i spelet (Insert eller L3 + R3).", "display": "Skärm",
+    "outputRes": "Utdataupplösning", "outputResHint": "Bildens storlek på skärmen. Uppskalaren fyller den.", "fullscreen": "Helskärm",
+    "presentMode": "Bildvisning", "showFps": "Visa FPS", "upscaling": "Uppskalning",
+    "upscalingHint": "Spelet renderar under utdataupplösningen och FSR återskapar bilden: den största prestandavinsten på Apple Silicon.",
+    "upscaler": "Uppskalare", "preset": "Kvalitetsförval", "presetRender": "{{name}} · renderar i {{size}}",
+    "sharpen": "Skärpning (RCAS)", "sharpness": "Skärpa", "objectMotion": "Figurernas rörelsevektorer",
+    "objectMotionHint": "Mindre spökbilder på rörliga figurer med FSR. Kostar ungefär 5 ms per bildruta på Apples grafikprocessorer.",
+    "detail": "Detaljer", "modelLod": "Modelldetaljer"
+  },
+  "controls": {
+    "title": "Kontroller", "subtitle": "Tilldelningar sparas i bbport.ini och gäller när spelet startar.",
+    "controller": "Handkontroll", "controllerHint": "Den valda används så fort den ansluts.", "auto": "Automatiskt (den första anslutna)",
+    "notConnected": "{{name}} (inte ansluten)", "noControllers": "Ingen handkontroll ansluten. Anslut en via USB eller Bluetooth och uppdatera.",
+    "bindings": "Tilldelningar", "gamepad": "Handkontroll", "keyboard": "Tangentbord", "assign": "Tilldela",
+    "press": "Tryck på en knapp eller tangent… (Esc avbryter)", "keyboardOnly": "Endast tangentbord", "resetAll": "Återställ allt",
+    "groups": { "Face buttons": "Handlingsknappar", "Shoulders and sticks": "Axelknappar och spakar", "System": "System", "D-pad": "Styrkors", "Movement and camera": "Rörelse och kamera" },
+    "inputs": {
+      "cross": "Kryss", "circle": "Cirkel", "square": "Fyrkant", "triangle": "Triangel", "l1": "L1", "r1": "R1", "l2": "L2", "r2": "R2",
+      "l3": "L3", "r3": "R3", "options": "Options", "touchpad": "Pekplatta (vänster halva)", "touchpad_right": "Pekplatta (höger halva)",
+      "up": "Styrkors upp", "down": "Styrkors ned", "left": "Styrkors vänster", "right": "Styrkors höger",
+      "move_up": "Framåt", "move_down": "Bakåt", "move_left": "Åt vänster", "move_right": "Åt höger",
+      "look_up": "Kamera upp", "look_down": "Kamera ned", "look_left": "Kamera vänster", "look_right": "Kamera höger"
+    },
+    "or": "eller"
+  },
+  "game": {
+    "title": "Spel", "subtitle": "Patchar som tillämpas på spelet när det startar.", "language": "Språk", "systemLanguage": "Spelets språk",
+    "systemLanguageHint": "PS4-systemspråket som spelet ser.", "effects": "Effekter",
+    "effectsHint": "Stäng av det du inte gillar, eller för lite mer prestanda.", "frameRate": "Bildfrekvens",
+    "fpsMode": "Bildfrekvensläge", "fpsLimit": "Bildfrekvensgräns", "fpsLimitHint": "0 betyder ingen gräns.",
+    "extras": "Extra", "skipIntro": "Hoppa över introvideorna", "debugCamera": "Fri kamera",
+    "debugCameraHint": "Håll Kryss och tryck L3 för att byta läge (tangentbord: Mellanslag + Z).", "debugMenu": "Felsökningsmeny",
+    "debugMenuHint": "Kräver DbgFont14h.ccm och DbgFont14h.tpf i spelets dvdroot_ps4/font. Öppnas med pekplattans vänstra halva eller Tab.",
+    "saves": "Sparfiler", "savesFolder": "Mapp för sparfiler"
+  },
+  "mods": {
+    "title": "Moddar", "subtitle": "Moddar med lösa filer, laddade i ordning: senare ersätter tidigare. Spelmappen ändras aldrig.",
+    "enabled": "Ladda moddar", "folder": "Moddmapp",
+    "folderHint": "Varje modd är en mapp (med dvdroot_ps4/ eller direkt spelets mappar, som chr/).", "list": "Laddningsordning",
+    "empty": "Inga moddar", "emptyHint": "Lägg moddarnas mappar i moddmappen och uppdatera.", "moveUp": "Ladda tidigare",
+    "moveDown": "Ladda senare", "saveFailed": "Kunde inte spara moddarna"
+  },
+  "patches": {
+    "title": "Patchar", "subtitle": "Tredjepartspatchar i shadPS4:s XML-format, för spelversion 01.09.", "folder": "Patchmapp",
+    "folderHint": "XML-patchfiler.", "list": "Tillgängliga patchar", "empty": "Inga patchar",
+    "emptyHint": "Lägg XML-patchfiler i shadPS4-format i patchmappen och uppdatera.", "by": "av {{author}}",
+    "saveFailed": "Kunde inte spara patcharna"
+  },
+  "advanced": {
+    "title": "Avancerat", "subtitle": "Alternativ för felsökning och tester.", "launcher": "Startprogram", "launcherLanguage": "Startprogrammets språk",
+    "launcherLanguageHint": "Menyn i spelet följer det (engelska eller ryska).", "systemDefault": "Systemets språk", "performance": "Prestanda",
+    "drawPipe": "GPU-pipeline i två steg", "readbacks": "GPU-data som läses av processorn", "preupload": "Uppladdning till GPU-minnet i bakgrunden",
+    "liveResolution": "Byt upplösning direkt", "liveResolutionHint": "Byter utdata och förval utan omstart, på bekostnad av prestanda.",
+    "diagnostics": "Diagnostik", "frameStats": "Bildstatistik i loggen", "saveLog": "Spara logg och statistik i en fil",
+    "saveLogHint": "I mappen logs i datamappen.", "crashDiag": "Kraschdiagnostik",
+    "crashDiagHint": "Kontrollerar spelets heap och registrerar skrivningar till den. Något långsammare.", "gpuProfile": "GPU-profil i loggen",
+    "extraEnv": "Extra miljövariabler", "extraEnvHint": "NAMN=värde-par åtskilda med mellanslag, skickas till spelet.", "data": "Data",
+    "dataFolder": "Datamapp", "dataFolderHint": "Inställningar, sparfiler, shadercache och loggar."
+  },
+  "log": {
+    "title": "Logg", "subtitle": "Spelets utdata från senaste starten.", "copy": "Kopiera", "copied": "Loggen kopierades", "clear": "Rensa",
+    "openFolder": "Loggmapp", "empty": "Inget ännu", "emptyHint": "Starta spelet för att se dess utdata här.", "follow": "Följ"
+  },
+  "options": {
+    "upscaler": { "fsr3": "AMD FSR 3.1", "fsr3Hint": "Renderar under utdata och återskapar bilden", "off": "Av", "offHint": "Inbyggd upplösning" },
+    "preset": { "0": "Native AA", "1": "Kvalitet", "2": "Balanserad", "3": "Prestanda", "4": "Ultraprestanda" },
+    "fps": { "uncap": "Obegränsad", "uncapHint": "Bildtidspatch: valfri bildfrekvens", "60": "60", "90": "90", "30": "30", "30Hint": "Som på PS4" },
+    "lod": { "-2": "Högst", "0": "Som i spelet", "1": "Lägre", "2": "Lägst" },
+    "present": { "Fifo": "V-Sync", "FifoRelaxed": "Adaptiv V-Sync", "Mailbox": "Mailbox", "Immediate": "Omedelbar (med tearing)" },
+    "drawPipe": { "auto": "Automatiskt", "autoHint": "På med 8 eller fler processortrådar", "on": "På", "off": "Av", "offHint": "Stabilare, långsammare" },
+    "readbacks": { "relaxed": "Avslappnad (standard)", "precise": "Exakt", "off": "Av" },
+    "preupload": { "normal": "Normal", "full": "Full", "fullHint": "Ungefär 3 GB mer GPU-minne", "off": "Av" },
+    "live": { "0": "Av (snabbare)", "1": "På", "auto": "Automatiskt" },
+    "effects": {
+      "effect_chromatic_aberration": "Kromatisk aberration", "effect_dof": "Skärpedjup", "effect_motion_blur": "Rörelseoskärpa",
+      "effect_ssao": "Omgivningsskuggning (SSAO)", "effect_game_aa": "Spelets egen kantutjämning", "effect_dynamic_shadows": "Skuggor från dynamiska ljus",
+      "effect_ssr": "Skärmrymdsreflektioner", "effect_ssrHint": "Fanns inte i originalspelet"
+    }
+  }
+}

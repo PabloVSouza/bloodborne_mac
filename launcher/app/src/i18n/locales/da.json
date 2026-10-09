@@ -1,0 +1,105 @@
+{
+  "app": { "name": "Bloodborne", "tagline": "til Apple Silicon", "version": "v{{version}}" },
+  "nav": { "home": "Hjem", "graphics": "Grafik", "controls": "Styring", "game": "Spil", "mods": "Mods", "patches": "Patches", "advanced": "Avanceret", "log": "Log" },
+  "play": {
+    "play": "Spil", "stop": "Stop", "running": "Kører",
+    "started": "Spillet starter. Første start kompilerer spillets shaders og tager et par minutter.",
+    "failedToStart": "Spillet startede ikke", "failedToStop": "Spillet kunne ikke stoppes",
+    "exitedWithError": "Spillet stoppede med en fejl", "exitCode": "Afslutningskode {{code}}: se fanen Log."
+  },
+  "common": {
+    "choose": "Vælg…", "showInFinder": "Vis i Finder", "useDefault": "Brug standardmappen", "refresh": "Opdater",
+    "reset": "Nulstil", "default": "Standard", "custom": "Tilpasset", "on": "Til", "off": "Fra", "auto": "Automatisk",
+    "notAssigned": "Ikke tildelt", "saveFailed": "Kunne ikke gemme", "restartNote": "Gælder fra næste start."
+  },
+  "home": {
+    "title": "Jag natten", "subtitle": "Bloodborne, nativt på Apple Silicon.", "gameFolder": "Spil",
+    "gameFolderHint": "Din kopi af Bloodborne: mappen CUSA03173, version 1.09.", "checking": "Kontrollerer spillet…", "ready": "Klar til at spille",
+    "noFolder": "Vælg spilmappen (CUSA03173).", "summary": "Overblik", "upscaler": "Opskalering", "renderSize": "Renderer i {{size}}",
+    "frameRate": "Billedhastighed", "controller": "Controller", "mods": "Mods",
+    "modsActive": "{{count}} aktive", "modsActive_one": "{{count}} aktiv", "modsActive_other": "{{count}} aktive", "modsOff": "Fra",
+    "firstStart": "Første start kompilerer spillets shaders og tager derfor et par minutter. Senere starter går hurtigt.",
+    "lastRun": "Seneste session", "lastRunOk": "Spillet lukkede normalt.", "lastRunError": "Spillet stoppede med afslutningskode {{code}}.",
+    "openData": "Gemte spil og data"
+  },
+  "graphics": {
+    "title": "Grafik", "subtitle": "Delt med menuen i spillet (Insert eller L3 + R3).", "display": "Skærm",
+    "outputRes": "Outputopløsning", "outputResHint": "Billedets størrelse på skærmen. Opskaleringen udfylder det.", "fullscreen": "Fuld skærm",
+    "presentMode": "Billedvisning", "showFps": "Vis FPS", "upscaling": "Opskalering",
+    "upscalingHint": "Spillet renderer under outputopløsningen, og FSR genskaber billedet: den største ydelsesgevinst på Apple Silicon.",
+    "upscaler": "Opskalering", "preset": "Kvalitetsforudindstilling", "presetRender": "{{name}} · renderer i {{size}}",
+    "sharpen": "Skarphed (RCAS)", "sharpness": "Skarphedsstyrke", "objectMotion": "Figurernes bevægelsesvektorer",
+    "objectMotionHint": "Færre spøgelsesbilleder på figurer i bevægelse med FSR. Koster omkring 5 ms pr. billede på Apples grafikprocessorer.",
+    "detail": "Detaljer", "modelLod": "Modeldetaljer"
+  },
+  "controls": {
+    "title": "Styring", "subtitle": "Tildelinger gemmes i bbport.ini og gælder, når spillet starter.",
+    "controller": "Controller", "controllerHint": "Den valgte bruges, så snart den er tilsluttet.", "auto": "Automatisk (den første tilsluttede)",
+    "notConnected": "{{name}} (ikke tilsluttet)", "noControllers": "Ingen controller tilsluttet. Tilslut en via USB eller Bluetooth, og opdater.",
+    "bindings": "Tildelinger", "gamepad": "Controller", "keyboard": "Tastatur", "assign": "Tildel",
+    "press": "Tryk på en knap eller tast… (Esc annullerer)", "keyboardOnly": "Kun tastatur", "resetAll": "Nulstil alt",
+    "groups": { "Face buttons": "Handlingsknapper", "Shoulders and sticks": "Skulderknapper og pinde", "System": "System", "D-pad": "Retningsknapper", "Movement and camera": "Bevægelse og kamera" },
+    "inputs": {
+      "cross": "Kryds", "circle": "Cirkel", "square": "Firkant", "triangle": "Trekant", "l1": "L1", "r1": "R1", "l2": "L2", "r2": "R2",
+      "l3": "L3", "r3": "R3", "options": "Options", "touchpad": "Touchpad (venstre halvdel)", "touchpad_right": "Touchpad (højre halvdel)",
+      "up": "Retning op", "down": "Retning ned", "left": "Retning venstre", "right": "Retning højre",
+      "move_up": "Fremad", "move_down": "Tilbage", "move_left": "Til venstre", "move_right": "Til højre",
+      "look_up": "Kamera op", "look_down": "Kamera ned", "look_left": "Kamera til venstre", "look_right": "Kamera til højre"
+    },
+    "or": "eller"
+  },
+  "game": {
+    "title": "Spil", "subtitle": "Patches, der anvendes på spillet, når det starter.", "language": "Sprog", "systemLanguage": "Spillets sprog",
+    "systemLanguageHint": "Det PS4-systemsprog, spillet ser.", "effects": "Effekter",
+    "effectsHint": "Slå det fra, du ikke kan lide, eller for lidt ekstra ydelse.", "frameRate": "Billedhastighed",
+    "fpsMode": "Billedhastighedstilstand", "fpsLimit": "Grænse for billedhastighed", "fpsLimitHint": "0 betyder ingen grænse.",
+    "extras": "Ekstra", "skipIntro": "Spring introvideoerne over", "debugCamera": "Fri kamera",
+    "debugCameraHint": "Hold Kryds nede, og tryk på L3 for at skifte tilstand (tastatur: Mellemrum + Z).", "debugMenu": "Fejlfindingsmenu",
+    "debugMenuHint": "Kræver DbgFont14h.ccm og DbgFont14h.tpf i spillets dvdroot_ps4/font. Åbnes med touchpaddens venstre halvdel eller Tab.",
+    "saves": "Gemte spil", "savesFolder": "Mappe til gemte spil"
+  },
+  "mods": {
+    "title": "Mods", "subtitle": "Mods med løse filer, indlæst i rækkefølge: senere erstatter tidligere. Spilmappen ændres aldrig.",
+    "enabled": "Indlæs mods", "folder": "Modmappe",
+    "folderHint": "Hvert mod er en mappe (med dvdroot_ps4/ eller direkte spillets mapper som chr/).", "list": "Indlæsningsrækkefølge",
+    "empty": "Ingen mods", "emptyHint": "Læg modmapperne i modmappen, og opdater.", "moveUp": "Indlæs tidligere",
+    "moveDown": "Indlæs senere", "saveFailed": "Kunne ikke gemme mods"
+  },
+  "patches": {
+    "title": "Patches", "subtitle": "Tredjepartspatches i shadPS4's XML-format til spilversion 01.09.", "folder": "Patchmappe",
+    "folderHint": "XML-patchfiler.", "list": "Tilgængelige patches", "empty": "Ingen patches",
+    "emptyHint": "Læg XML-patchfiler i shadPS4-format i patchmappen, og opdater.", "by": "af {{author}}",
+    "saveFailed": "Kunne ikke gemme patches"
+  },
+  "advanced": {
+    "title": "Avanceret", "subtitle": "Indstillinger til fejlfinding og test.", "launcher": "Launcher", "launcherLanguage": "Launcherens sprog",
+    "launcherLanguageHint": "Menuen i spillet følger det (engelsk eller russisk).", "systemDefault": "Systemets sprog", "performance": "Ydelse",
+    "drawPipe": "GPU-pipeline i to trin", "readbacks": "GPU-data læst af processoren", "preupload": "Upload til GPU-hukommelse i baggrunden",
+    "liveResolution": "Skift opløsning undervejs", "liveResolutionHint": "Skifter output og forudindstilling uden genstart, på bekostning af ydelse.",
+    "diagnostics": "Diagnostik", "frameStats": "Billedstatistik i loggen", "saveLog": "Gem log og statistik i en fil",
+    "saveLogHint": "I mappen logs i datamappen.", "crashDiag": "Nedbrudsdiagnostik",
+    "crashDiagHint": "Kontrollerer spillets heap og registrerer skrivninger til den. Lidt langsommere.", "gpuProfile": "GPU-profil i loggen",
+    "extraEnv": "Ekstra miljøvariabler", "extraEnvHint": "NAVN=værdi-par adskilt af mellemrum, sendt til spillet.", "data": "Data",
+    "dataFolder": "Datamappe", "dataFolderHint": "Indstillinger, gemte spil, shadercache og logge."
+  },
+  "log": {
+    "title": "Log", "subtitle": "Spillets output fra seneste start.", "copy": "Kopiér", "copied": "Loggen er kopieret", "clear": "Ryd",
+    "openFolder": "Logmappe", "empty": "Intet endnu", "emptyHint": "Start spillet for at se dets output her.", "follow": "Følg"
+  },
+  "options": {
+    "upscaler": { "fsr3": "AMD FSR 3.1", "fsr3Hint": "Renderer under output og genskaber billedet", "off": "Fra", "offHint": "Indbygget opløsning" },
+    "preset": { "0": "Native AA", "1": "Kvalitet", "2": "Balanceret", "3": "Ydelse", "4": "Ultraydelse" },
+    "fps": { "uncap": "Ubegrænset", "uncapHint": "Billedtidspatch: enhver billedhastighed", "60": "60", "90": "90", "30": "30", "30Hint": "Som på PS4" },
+    "lod": { "-2": "Højest", "0": "Som i spillet", "1": "Lavere", "2": "Lavest" },
+    "present": { "Fifo": "V-Sync", "FifoRelaxed": "Adaptiv V-Sync", "Mailbox": "Mailbox", "Immediate": "Øjeblikkelig (med tearing)" },
+    "drawPipe": { "auto": "Automatisk", "autoHint": "Til med 8 eller flere processortråde", "on": "Til", "off": "Fra", "offHint": "Mere stabil, langsommere" },
+    "readbacks": { "relaxed": "Afslappet (standard)", "precise": "Præcis", "off": "Fra" },
+    "preupload": { "normal": "Normal", "full": "Fuld", "fullHint": "Omkring 3 GB mere GPU-hukommelse", "off": "Fra" },
+    "live": { "0": "Fra (hurtigere)", "1": "Til", "auto": "Automatisk" },
+    "effects": {
+      "effect_chromatic_aberration": "Kromatisk aberration", "effect_dof": "Dybdeskarphed", "effect_motion_blur": "Bevægelsessløring",
+      "effect_ssao": "Omgivelsesskygger (SSAO)", "effect_game_aa": "Spillets egen kantudjævning", "effect_dynamic_shadows": "Skygger fra dynamisk lys",
+      "effect_ssr": "Skærmrumsrefleksioner", "effect_ssrHint": "Fandtes ikke i originalspillet"
+    }
+  }
+}

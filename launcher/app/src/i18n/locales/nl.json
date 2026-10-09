@@ -1,0 +1,105 @@
+{
+  "app": { "name": "Bloodborne", "tagline": "voor Apple Silicon", "version": "v{{version}}" },
+  "nav": { "home": "Start", "graphics": "Graphics", "controls": "Besturing", "game": "Spel", "mods": "Mods", "patches": "Patches", "advanced": "Geavanceerd", "log": "Logboek" },
+  "play": {
+    "play": "Spelen", "stop": "Stoppen", "running": "Actief",
+    "started": "Het spel start. De eerste start compileert de shaders van het spel en duurt een paar minuten.",
+    "failedToStart": "Het spel is niet gestart", "failedToStop": "Kon het spel niet stoppen",
+    "exitedWithError": "Het spel is gestopt met een fout", "exitCode": "Afsluitcode {{code}}: zie het tabblad Logboek."
+  },
+  "common": {
+    "choose": "Kiezen…", "showInFinder": "Toon in Finder", "useDefault": "Standaardmap gebruiken", "refresh": "Vernieuwen",
+    "reset": "Herstellen", "default": "Standaard", "custom": "Aangepast", "on": "Aan", "off": "Uit", "auto": "Automatisch",
+    "notAssigned": "Niet toegewezen", "saveFailed": "Opslaan mislukt", "restartNote": "Geldt vanaf de volgende start."
+  },
+  "home": {
+    "title": "Jaag op de nacht", "subtitle": "Bloodborne, native op Apple Silicon.", "gameFolder": "Spel",
+    "gameFolderHint": "Jouw kopie van Bloodborne: de map CUSA03173, versie 1.09.", "checking": "Spel controleren…", "ready": "Klaar om te spelen",
+    "noFolder": "Kies de spelmap (CUSA03173).", "summary": "Overzicht", "upscaler": "Upscaler", "renderSize": "Rendert op {{size}}",
+    "frameRate": "Framerate", "controller": "Controller", "mods": "Mods",
+    "modsActive": "{{count}} actief", "modsActive_one": "{{count}} actief", "modsActive_other": "{{count}} actief", "modsOff": "Uit",
+    "firstStart": "De eerste start compileert de shaders van het spel en duurt daardoor een paar minuten. Latere starts zijn snel.",
+    "lastRun": "Laatste sessie", "lastRunOk": "Het spel is normaal afgesloten.", "lastRunError": "Het spel is gestopt met afsluitcode {{code}}.",
+    "openData": "Opslagen en gegevens"
+  },
+  "graphics": {
+    "title": "Graphics", "subtitle": "Gedeeld met het menu in het spel (Insert of L3 + R3).", "display": "Beeld",
+    "outputRes": "Uitvoerresolutie", "outputResHint": "De grootte van het beeld op het scherm. De upscaler vult het.", "fullscreen": "Volledig scherm",
+    "presentMode": "Beeldweergave", "showFps": "FPS tonen", "upscaling": "Upscaling",
+    "upscalingHint": "Het spel rendert onder de uitvoerresolutie en FSR reconstrueert het beeld: de grootste prestatiewinst op Apple Silicon.",
+    "upscaler": "Upscaler", "preset": "Kwaliteitsvoorinstelling", "presetRender": "{{name}} · rendert op {{size}}",
+    "sharpen": "Verscherping (RCAS)", "sharpness": "Scherpte", "objectMotion": "Bewegingsvectoren van personages",
+    "objectMotionHint": "Minder sporen bij bewegende personages met FSR. Kost ongeveer 5 ms per frame op Apple-GPU's.",
+    "detail": "Detail", "modelLod": "Modeldetail"
+  },
+  "controls": {
+    "title": "Besturing", "subtitle": "Toewijzingen staan in bbport.ini en gelden bij de start van het spel.",
+    "controller": "Controller", "controllerHint": "De gekozen controller wordt gebruikt zodra hij verbonden is.", "auto": "Automatisch (de eerst verbonden)",
+    "notConnected": "{{name}} (niet verbonden)", "noControllers": "Geen controller verbonden. Verbind er een via USB of Bluetooth en vernieuw.",
+    "bindings": "Toewijzingen", "gamepad": "Controller", "keyboard": "Toetsenbord", "assign": "Toewijzen",
+    "press": "Druk op een knop of toets… (Esc annuleert)", "keyboardOnly": "Alleen toetsenbord", "resetAll": "Alles herstellen",
+    "groups": { "Face buttons": "Actieknoppen", "Shoulders and sticks": "Schouderknoppen en sticks", "System": "Systeem", "D-pad": "Richtingsknoppen", "Movement and camera": "Beweging en camera" },
+    "inputs": {
+      "cross": "Kruis", "circle": "Cirkel", "square": "Vierkant", "triangle": "Driehoek", "l1": "L1", "r1": "R1", "l2": "L2", "r2": "R2",
+      "l3": "L3", "r3": "R3", "options": "Options", "touchpad": "Touchpad (linkerhelft)", "touchpad_right": "Touchpad (rechterhelft)",
+      "up": "Richting omhoog", "down": "Richting omlaag", "left": "Richting links", "right": "Richting rechts",
+      "move_up": "Vooruit", "move_down": "Achteruit", "move_left": "Naar links", "move_right": "Naar rechts",
+      "look_up": "Camera omhoog", "look_down": "Camera omlaag", "look_left": "Camera links", "look_right": "Camera rechts"
+    },
+    "or": "of"
+  },
+  "game": {
+    "title": "Spel", "subtitle": "Patches die bij de start op het spel worden toegepast.", "language": "Taal", "systemLanguage": "Taal van het spel",
+    "systemLanguageHint": "De PS4-systeemtaal die het spel ziet.", "effects": "Effecten",
+    "effectsHint": "Zet uit wat je niet bevalt, of voor wat extra prestaties.", "frameRate": "Framerate",
+    "fpsMode": "Framerate-modus", "fpsLimit": "Framerate-limiet", "fpsLimitHint": "0 betekent geen limiet.",
+    "extras": "Extra's", "skipIntro": "Introvideo's overslaan", "debugCamera": "Vrije camera",
+    "debugCameraHint": "Houd Kruis vast en druk op L3 om van modus te wisselen (toetsenbord: Spatie + Z).", "debugMenu": "Debugmenu",
+    "debugMenuHint": "Vereist DbgFont14h.ccm en DbgFont14h.tpf in dvdroot_ps4/font van het spel. Opent met de linkerhelft van de touchpad of Tab.",
+    "saves": "Opslagen", "savesFolder": "Map met opslagen"
+  },
+  "mods": {
+    "title": "Mods", "subtitle": "Mods met losse bestanden, op volgorde geladen: latere overschrijven eerdere. De spelmap wordt nooit gewijzigd.",
+    "enabled": "Mods laden", "folder": "Modmap",
+    "folderHint": "Elke mod is een map (met dvdroot_ps4/, of direct de mappen van het spel zoals chr/).", "list": "Laadvolgorde",
+    "empty": "Geen mods", "emptyHint": "Zet de mapjes van de mods in de modmap en vernieuw.", "moveUp": "Eerder laden",
+    "moveDown": "Later laden", "saveFailed": "Kon de mods niet opslaan"
+  },
+  "patches": {
+    "title": "Patches", "subtitle": "Patches van derden in het XML-formaat van shadPS4, voor spelversie 01.09.", "folder": "Patchmap",
+    "folderHint": "XML-patchbestanden.", "list": "Beschikbare patches", "empty": "Geen patches",
+    "emptyHint": "Zet XML-patchbestanden in shadPS4-formaat in de patchmap en vernieuw.", "by": "door {{author}}",
+    "saveFailed": "Kon de patches niet opslaan"
+  },
+  "advanced": {
+    "title": "Geavanceerd", "subtitle": "Opties voor probleemoplossing en testen.", "launcher": "Launcher", "launcherLanguage": "Taal van de launcher",
+    "launcherLanguageHint": "Het menu in het spel volgt deze (Engels of Russisch).", "systemDefault": "Systeemtaal", "performance": "Prestaties",
+    "drawPipe": "GPU-pijplijn in twee fasen", "readbacks": "GPU-gegevens gelezen door de CPU", "preupload": "Uploaden naar GPU-geheugen op de achtergrond",
+    "liveResolution": "Resolutie live wijzigen", "liveResolutionHint": "Wijzig uitvoer en voorinstelling zonder herstart, ten koste van prestaties.",
+    "diagnostics": "Diagnose", "frameStats": "Framestatistieken in het logboek", "saveLog": "Logboek en statistieken in een bestand opslaan",
+    "saveLogHint": "In de map logs van de gegevensmap.", "crashDiag": "Crashdiagnose",
+    "crashDiagHint": "Controleert de heap van het spel en legt schrijfacties vast. Iets trager.", "gpuProfile": "GPU-profiel in het logboek",
+    "extraEnv": "Extra omgevingsvariabelen", "extraEnvHint": "NAAM=waarde-paren, gescheiden door spaties, doorgegeven aan het spel.", "data": "Gegevens",
+    "dataFolder": "Gegevensmap", "dataFolderHint": "Instellingen, opslagen, shadercache en logboeken."
+  },
+  "log": {
+    "title": "Logboek", "subtitle": "De uitvoer van het spel bij de laatste start.", "copy": "Kopiëren", "copied": "Logboek gekopieerd", "clear": "Wissen",
+    "openFolder": "Logboekmap", "empty": "Nog niets", "emptyHint": "Start het spel om hier de uitvoer te zien.", "follow": "Volgen"
+  },
+  "options": {
+    "upscaler": { "fsr3": "AMD FSR 3.1", "fsr3Hint": "Rendert onder de uitvoer en reconstrueert het beeld", "off": "Uit", "offHint": "Native resolutie" },
+    "preset": { "0": "Native AA", "1": "Kwaliteit", "2": "Gebalanceerd", "3": "Prestaties", "4": "Ultraprestaties" },
+    "fps": { "uncap": "Onbeperkt", "uncapHint": "Frametime-patch: elke framerate", "60": "60", "90": "90", "30": "30", "30Hint": "Zoals op de PS4" },
+    "lod": { "-2": "Hoogst", "0": "Zoals in het spel", "1": "Lager", "2": "Laagst" },
+    "present": { "Fifo": "V-Sync", "FifoRelaxed": "Adaptieve V-Sync", "Mailbox": "Mailbox", "Immediate": "Direct (met tearing)" },
+    "drawPipe": { "auto": "Automatisch", "autoHint": "Aan bij 8 of meer CPU-threads", "on": "Aan", "off": "Uit", "offHint": "Stabieler, trager" },
+    "readbacks": { "relaxed": "Ruim (standaard)", "precise": "Precies", "off": "Uit" },
+    "preupload": { "normal": "Normaal", "full": "Volledig", "fullHint": "Ongeveer 3 GB extra GPU-geheugen", "off": "Uit" },
+    "live": { "0": "Uit (sneller)", "1": "Aan", "auto": "Automatisch" },
+    "effects": {
+      "effect_chromatic_aberration": "Chromatische aberratie", "effect_dof": "Scherptediepte", "effect_motion_blur": "Bewegingsonscherpte",
+      "effect_ssao": "Omgevingsocclusie (SSAO)", "effect_game_aa": "Anti-aliasing van het spel", "effect_dynamic_shadows": "Schaduwen van dynamische lichten",
+      "effect_ssr": "Screen-space reflecties", "effect_ssrHint": "Niet in het originele spel"
+    }
+  }
+}

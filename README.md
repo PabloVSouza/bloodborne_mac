@@ -56,8 +56,8 @@ by the GPU. What was measured and changed, and what could still be gained:
 Applications, open it, choose your game folder (CUSA03173, v1.09) and press **Play**. Nothing else
 is needed: the app carries its own runtime. Its launcher has tabs for graphics, controls
 (controller choice and button mapping for controller and keyboard), game options and effects,
-mods (load order), third-party patches, advanced options and the game's log, in English and
-Brazilian Portuguese. The app is not signed with an Apple Developer ID, so
+mods (load order), third-party patches, advanced options and the game's log, in the game's 20
+languages. The app is not signed with an Apple Developer ID, so
 the first time right-click it and choose **Open** (or *System Settings → Privacy & Security →
 Open Anyway*).
 

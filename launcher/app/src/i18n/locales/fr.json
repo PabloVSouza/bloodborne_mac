@@ -1,0 +1,105 @@
+{
+  "app": { "name": "Bloodborne", "tagline": "pour Apple Silicon", "version": "v{{version}}" },
+  "nav": { "home": "Accueil", "graphics": "Graphismes", "controls": "Commandes", "game": "Jeu", "mods": "Mods", "patches": "Patchs", "advanced": "Avancé", "log": "Journal" },
+  "play": {
+    "play": "Jouer", "stop": "Arrêter", "running": "En cours",
+    "started": "Le jeu démarre. Le premier lancement compile les shaders du jeu et prend quelques minutes.",
+    "failedToStart": "Le jeu n'a pas démarré", "failedToStop": "Impossible d'arrêter le jeu",
+    "exitedWithError": "Le jeu s'est arrêté sur une erreur", "exitCode": "Code de sortie {{code}} : voir l'onglet Journal."
+  },
+  "common": {
+    "choose": "Choisir…", "showInFinder": "Afficher dans le Finder", "useDefault": "Utiliser le dossier par défaut", "refresh": "Actualiser",
+    "reset": "Réinitialiser", "default": "Par défaut", "custom": "Personnalisé", "on": "Activé", "off": "Désactivé", "auto": "Automatique",
+    "notAssigned": "Non attribué", "saveFailed": "Impossible d'enregistrer", "restartNote": "S'applique au prochain lancement."
+  },
+  "home": {
+    "title": "Chassez la nuit", "subtitle": "Bloodborne, en natif sur Apple Silicon.", "gameFolder": "Jeu",
+    "gameFolderHint": "Votre copie de Bloodborne : le dossier CUSA03173, version 1.09.", "checking": "Vérification du jeu…", "ready": "Prêt à jouer",
+    "noFolder": "Choisissez le dossier du jeu (CUSA03173).", "summary": "En bref", "upscaler": "Upscaler", "renderSize": "Rendu en {{size}}",
+    "frameRate": "Fréquence d'images", "controller": "Manette", "mods": "Mods",
+    "modsActive": "{{count}} actifs", "modsActive_one": "{{count}} actif", "modsActive_other": "{{count}} actifs", "modsOff": "Désactivés",
+    "firstStart": "Le premier lancement compile les shaders du jeu et prend quelques minutes. Les suivants sont rapides.",
+    "lastRun": "Dernière session", "lastRunOk": "Le jeu s'est fermé normalement.", "lastRunError": "Le jeu s'est arrêté avec le code de sortie {{code}}.",
+    "openData": "Sauvegardes et données"
+  },
+  "graphics": {
+    "title": "Graphismes", "subtitle": "Partagés avec le menu du jeu (Insert ou L3 + R3).", "display": "Affichage",
+    "outputRes": "Résolution de sortie", "outputResHint": "La taille de l'image à l'écran. L'upscaler la remplit.", "fullscreen": "Plein écran",
+    "presentMode": "Présentation des images", "showFps": "Afficher les FPS", "upscaling": "Mise à l'échelle",
+    "upscalingHint": "Le jeu effectue son rendu sous la résolution de sortie et FSR reconstruit l'image : le meilleur levier de performance sur Apple Silicon.",
+    "upscaler": "Upscaler", "preset": "Préréglage de qualité", "presetRender": "{{name}} · rendu en {{size}}",
+    "sharpen": "Netteté (RCAS)", "sharpness": "Intensité de la netteté", "objectMotion": "Vecteurs de mouvement des personnages",
+    "objectMotionHint": "Moins de traînées sur les personnages en mouvement avec FSR. Coûte environ 5 ms par image sur les GPU Apple.",
+    "detail": "Détails", "modelLod": "Détail des modèles"
+  },
+  "controls": {
+    "title": "Commandes", "subtitle": "Les attributions sont stockées dans bbport.ini et s'appliquent au lancement du jeu.",
+    "controller": "Manette", "controllerHint": "Celle choisie est utilisée dès qu'elle est connectée.", "auto": "Automatique (la première connectée)",
+    "notConnected": "{{name}} (non connectée)", "noControllers": "Aucune manette connectée. Branchez-en une en USB ou Bluetooth, puis actualisez.",
+    "bindings": "Attributions", "gamepad": "Manette", "keyboard": "Clavier", "assign": "Attribuer",
+    "press": "Appuyez sur un bouton ou une touche… (Échap pour annuler)", "keyboardOnly": "Clavier uniquement", "resetAll": "Tout réinitialiser",
+    "groups": { "Face buttons": "Boutons d'action", "Shoulders and sticks": "Gâchettes et sticks", "System": "Système", "D-pad": "Croix directionnelle", "Movement and camera": "Déplacement et caméra" },
+    "inputs": {
+      "cross": "Croix", "circle": "Rond", "square": "Carré", "triangle": "Triangle", "l1": "L1", "r1": "R1", "l2": "L2", "r2": "R2",
+      "l3": "L3", "r3": "R3", "options": "Options", "touchpad": "Pavé tactile (moitié gauche)", "touchpad_right": "Pavé tactile (moitié droite)",
+      "up": "Croix haut", "down": "Croix bas", "left": "Croix gauche", "right": "Croix droite",
+      "move_up": "Avancer", "move_down": "Reculer", "move_left": "Aller à gauche", "move_right": "Aller à droite",
+      "look_up": "Caméra vers le haut", "look_down": "Caméra vers le bas", "look_left": "Caméra vers la gauche", "look_right": "Caméra vers la droite"
+    },
+    "or": "ou"
+  },
+  "game": {
+    "title": "Jeu", "subtitle": "Patchs appliqués au jeu à son lancement.", "language": "Langue", "systemLanguage": "Langue du jeu",
+    "systemLanguageHint": "La langue système de la PS4 que voit le jeu.", "effects": "Effets",
+    "effectsHint": "Désactivez ce qui ne vous plaît pas, ou pour gagner un peu de performance.", "frameRate": "Fréquence d'images",
+    "fpsMode": "Mode de fréquence d'images", "fpsLimit": "Limite de fréquence d'images", "fpsLimitHint": "0 signifie aucune limite.",
+    "extras": "Extras", "skipIntro": "Passer les vidéos d'introduction", "debugCamera": "Caméra libre",
+    "debugCameraHint": "Maintenez Croix et appuyez sur L3 pour changer de mode (clavier : Espace + Z).", "debugMenu": "Menu de débogage",
+    "debugMenuHint": "Nécessite DbgFont14h.ccm et DbgFont14h.tpf dans dvdroot_ps4/font du jeu. S'ouvre avec la moitié gauche du pavé tactile ou Tab.",
+    "saves": "Sauvegardes", "savesFolder": "Dossier des sauvegardes"
+  },
+  "mods": {
+    "title": "Mods", "subtitle": "Mods de fichiers libres, chargés dans l'ordre : les derniers remplacent les premiers. Le dossier du jeu n'est jamais modifié.",
+    "enabled": "Charger les mods", "folder": "Dossier des mods",
+    "folderHint": "Chaque mod est un dossier (avec dvdroot_ps4/, ou directement les dossiers du jeu comme chr/).", "list": "Ordre de chargement",
+    "empty": "Aucun mod", "emptyHint": "Placez les dossiers des mods dans le dossier des mods, puis actualisez.", "moveUp": "Charger plus tôt",
+    "moveDown": "Charger plus tard", "saveFailed": "Impossible d'enregistrer les mods"
+  },
+  "patches": {
+    "title": "Patchs", "subtitle": "Patchs tiers au format XML de shadPS4, pour la version 01.09 du jeu.", "folder": "Dossier des patchs",
+    "folderHint": "Fichiers de patch XML.", "list": "Patchs disponibles", "empty": "Aucun patch",
+    "emptyHint": "Placez des fichiers de patch XML au format shadPS4 dans le dossier des patchs, puis actualisez.", "by": "par {{author}}",
+    "saveFailed": "Impossible d'enregistrer les patchs"
+  },
+  "advanced": {
+    "title": "Avancé", "subtitle": "Options de diagnostic et de test.", "launcher": "Lanceur", "launcherLanguage": "Langue du lanceur",
+    "launcherLanguageHint": "Le menu du jeu la suit (anglais ou russe).", "systemDefault": "Langue du système", "performance": "Performances",
+    "drawPipe": "Pipeline GPU en deux étapes", "readbacks": "Données GPU lues par le CPU", "preupload": "Envoi en arrière-plan vers la mémoire GPU",
+    "liveResolution": "Changement de résolution à la volée", "liveResolutionHint": "Change la sortie et le préréglage sans redémarrer, au prix de performances.",
+    "diagnostics": "Diagnostic", "frameStats": "Statistiques d'images dans le journal", "saveLog": "Enregistrer le journal et les statistiques dans un fichier",
+    "saveLogHint": "Dans le dossier logs du dossier de données.", "crashDiag": "Diagnostic des plantages",
+    "crashDiagHint": "Vérifie le tas du jeu et enregistre les écritures. Un peu plus lent.", "gpuProfile": "Profil GPU dans le journal",
+    "extraEnv": "Variables d'environnement supplémentaires", "extraEnvHint": "Paires NOM=valeur séparées par des espaces, transmises au jeu.", "data": "Données",
+    "dataFolder": "Dossier de données", "dataFolderHint": "Réglages, sauvegardes, cache des shaders et journaux."
+  },
+  "log": {
+    "title": "Journal", "subtitle": "La sortie du jeu lors du dernier lancement.", "copy": "Copier", "copied": "Journal copié", "clear": "Effacer",
+    "openFolder": "Dossier des journaux", "empty": "Rien pour l'instant", "emptyHint": "Lancez le jeu pour voir sa sortie ici.", "follow": "Suivre"
+  },
+  "options": {
+    "upscaler": { "fsr3": "AMD FSR 3.1", "fsr3Hint": "Rendu sous la sortie, image reconstruite", "off": "Désactivé", "offHint": "Résolution native" },
+    "preset": { "0": "Native AA", "1": "Qualité", "2": "Équilibré", "3": "Performance", "4": "Ultra performance" },
+    "fps": { "uncap": "Illimitée", "uncapHint": "Patch de temps d'image : toute fréquence", "60": "60", "90": "90", "30": "30", "30Hint": "Comme sur PS4" },
+    "lod": { "-2": "Maximal", "0": "Comme dans le jeu", "1": "Réduit", "2": "Minimal" },
+    "present": { "Fifo": "V-Sync", "FifoRelaxed": "V-Sync adaptative", "Mailbox": "Mailbox", "Immediate": "Immédiat (avec déchirement)" },
+    "drawPipe": { "auto": "Automatique", "autoHint": "Activé avec 8 threads CPU ou plus", "on": "Activé", "off": "Désactivé", "offHint": "Plus stable, plus lent" },
+    "readbacks": { "relaxed": "Souple (par défaut)", "precise": "Précis", "off": "Désactivé" },
+    "preupload": { "normal": "Normal", "full": "Complet", "fullHint": "Environ 3 Go de mémoire GPU en plus", "off": "Désactivé" },
+    "live": { "0": "Désactivé (plus rapide)", "1": "Activé", "auto": "Automatique" },
+    "effects": {
+      "effect_chromatic_aberration": "Aberration chromatique", "effect_dof": "Profondeur de champ", "effect_motion_blur": "Flou de mouvement",
+      "effect_ssao": "Occlusion ambiante (SSAO)", "effect_game_aa": "Anticrénelage du jeu", "effect_dynamic_shadows": "Ombres des lumières dynamiques",
+      "effect_ssr": "Réflexions en espace écran", "effect_ssrHint": "Absent du jeu original"
+    }
+  }
+}

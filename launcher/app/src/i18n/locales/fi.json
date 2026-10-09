@@ -1,0 +1,105 @@
+{
+  "app": { "name": "Bloodborne", "tagline": "Apple Siliconille", "version": "v{{version}}" },
+  "nav": { "home": "Koti", "graphics": "Grafiikka", "controls": "Ohjaimet", "game": "Peli", "mods": "Modit", "patches": "Paikat", "advanced": "Lisäasetukset", "log": "Loki" },
+  "play": {
+    "play": "Pelaa", "stop": "Pysäytä", "running": "Käynnissä",
+    "started": "Peli käynnistyy. Ensimmäinen käynnistys kääntää pelin varjostimet ja kestää muutaman minuutin.",
+    "failedToStart": "Peli ei käynnistynyt", "failedToStop": "Peliä ei voitu pysäyttää",
+    "exitedWithError": "Peli pysähtyi virheeseen", "exitCode": "Lopetuskoodi {{code}}: katso Loki-välilehti."
+  },
+  "common": {
+    "choose": "Valitse…", "showInFinder": "Näytä Finderissa", "useDefault": "Käytä oletuskansiota", "refresh": "Päivitä",
+    "reset": "Palauta", "default": "Oletus", "custom": "Mukautettu", "on": "Päällä", "off": "Pois", "auto": "Automaattinen",
+    "notAssigned": "Ei määritetty", "saveFailed": "Tallennus epäonnistui", "restartNote": "Tulee voimaan seuraavalla käynnistyksellä."
+  },
+  "home": {
+    "title": "Metsästä yötä", "subtitle": "Bloodborne natiivisti Apple Siliconilla.", "gameFolder": "Peli",
+    "gameFolderHint": "Bloodborne-kopiosi: kansio CUSA03173, versio 1.09.", "checking": "Tarkistetaan peliä…", "ready": "Valmis pelattavaksi",
+    "noFolder": "Valitse pelikansio (CUSA03173).", "summary": "Yhteenveto", "upscaler": "Skaalain", "renderSize": "Renderöi {{size}}",
+    "frameRate": "Kuvataajuus", "controller": "Ohjain", "mods": "Modit",
+    "modsActive": "{{count}} käytössä", "modsActive_one": "{{count}} käytössä", "modsActive_other": "{{count}} käytössä", "modsOff": "Pois",
+    "firstStart": "Ensimmäinen käynnistys kääntää pelin varjostimet, joten se kestää muutaman minuutin. Seuraavat ovat nopeita.",
+    "lastRun": "Edellinen istunto", "lastRunOk": "Peli suljettiin normaalisti.", "lastRunError": "Peli pysähtyi lopetuskoodiin {{code}}.",
+    "openData": "Tallennukset ja tiedot"
+  },
+  "graphics": {
+    "title": "Grafiikka", "subtitle": "Yhteiset pelin valikon kanssa (Insert tai L3 + R3).", "display": "Näyttö",
+    "outputRes": "Lähtötarkkuus", "outputResHint": "Kuvan koko näytöllä. Skaalain täyttää sen.", "fullscreen": "Koko näyttö",
+    "presentMode": "Kuvien esitys", "showFps": "Näytä FPS", "upscaling": "Skaalaus",
+    "upscalingHint": "Peli renderöi lähtötarkkuutta pienemmällä ja FSR rakentaa kuvan uudelleen: suurin suorituskykyhyöty Apple Siliconilla.",
+    "upscaler": "Skaalain", "preset": "Laatuesiasetus", "presetRender": "{{name}} · renderöi {{size}}",
+    "sharpen": "Terävöinti (RCAS)", "sharpness": "Terävyys", "objectMotion": "Hahmojen liikevektorit",
+    "objectMotionHint": "Vähemmän jälkiä liikkuvissa hahmoissa FSR:n kanssa. Maksaa noin 5 ms kuvaa kohden Applen grafiikkasuorittimilla.",
+    "detail": "Yksityiskohdat", "modelLod": "Mallien yksityiskohdat"
+  },
+  "controls": {
+    "title": "Ohjaimet", "subtitle": "Määritykset tallennetaan tiedostoon bbport.ini ja ne tulevat voimaan pelin käynnistyessä.",
+    "controller": "Ohjain", "controllerHint": "Valittua käytetään heti, kun se yhdistetään.", "auto": "Automaattinen (ensimmäinen yhdistetty)",
+    "notConnected": "{{name}} (ei yhdistetty)", "noControllers": "Ohjainta ei ole yhdistetty. Yhdistä ohjain USB:llä tai Bluetoothilla ja päivitä.",
+    "bindings": "Määritykset", "gamepad": "Ohjain", "keyboard": "Näppäimistö", "assign": "Määritä",
+    "press": "Paina painiketta tai näppäintä… (Esc peruuttaa)", "keyboardOnly": "Vain näppäimistö", "resetAll": "Palauta kaikki",
+    "groups": { "Face buttons": "Toimintopainikkeet", "Shoulders and sticks": "Olkapainikkeet ja sauvat", "System": "Järjestelmä", "D-pad": "Ristiohjain", "Movement and camera": "Liike ja kamera" },
+    "inputs": {
+      "cross": "Risti", "circle": "Ympyrä", "square": "Neliö", "triangle": "Kolmio", "l1": "L1", "r1": "R1", "l2": "L2", "r2": "R2",
+      "l3": "L3", "r3": "R3", "options": "Options", "touchpad": "Kosketuslevy (vasen puoli)", "touchpad_right": "Kosketuslevy (oikea puoli)",
+      "up": "Ristiohjain ylös", "down": "Ristiohjain alas", "left": "Ristiohjain vasemmalle", "right": "Ristiohjain oikealle",
+      "move_up": "Eteenpäin", "move_down": "Taaksepäin", "move_left": "Vasemmalle", "move_right": "Oikealle",
+      "look_up": "Kamera ylös", "look_down": "Kamera alas", "look_left": "Kamera vasemmalle", "look_right": "Kamera oikealle"
+    },
+    "or": "tai"
+  },
+  "game": {
+    "title": "Peli", "subtitle": "Peliin käynnistyksessä tehtävät paikat.", "language": "Kieli", "systemLanguage": "Pelin kieli",
+    "systemLanguageHint": "PS4:n järjestelmäkieli, jonka peli näkee.", "effects": "Tehosteet",
+    "effectsHint": "Poista käytöstä se, mistä et pidä, tai saadaksesi hieman suorituskykyä.", "frameRate": "Kuvataajuus",
+    "fpsMode": "Kuvataajuustila", "fpsLimit": "Kuvataajuuden raja", "fpsLimitHint": "0 tarkoittaa ei rajaa.",
+    "extras": "Lisät", "skipIntro": "Ohita alkuvideot", "debugCamera": "Vapaa kamera",
+    "debugCameraHint": "Pidä Ristiä painettuna ja paina L3 vaihtaaksesi tilaa (näppäimistö: Välilyönti + Z).", "debugMenu": "Virheenkorjausvalikko",
+    "debugMenuHint": "Vaatii tiedostot DbgFont14h.ccm ja DbgFont14h.tpf pelin kansioon dvdroot_ps4/font. Avautuu kosketuslevyn vasemmalla puolella tai Tabilla.",
+    "saves": "Tallennukset", "savesFolder": "Tallennuskansio"
+  },
+  "mods": {
+    "title": "Modit", "subtitle": "Irtotiedostomodit ladataan järjestyksessä: myöhemmät korvaavat aiemmat. Pelikansiota ei koskaan muuteta.",
+    "enabled": "Lataa modit", "folder": "Modikansio",
+    "folderHint": "Jokainen modi on kansio (jossa dvdroot_ps4/ tai suoraan pelin kansiot, kuten chr/).", "list": "Latausjärjestys",
+    "empty": "Ei modeja", "emptyHint": "Laita modien kansiot modikansioon ja päivitä.", "moveUp": "Lataa aiemmin",
+    "moveDown": "Lataa myöhemmin", "saveFailed": "Modeja ei voitu tallentaa"
+  },
+  "patches": {
+    "title": "Paikat", "subtitle": "Kolmansien osapuolten paikat shadPS4:n XML-muodossa pelin versiolle 01.09.", "folder": "Paikkakansio",
+    "folderHint": "XML-paikkatiedostot.", "list": "Saatavilla olevat paikat", "empty": "Ei paikkoja",
+    "emptyHint": "Laita shadPS4-muotoiset XML-paikkatiedostot paikkakansioon ja päivitä.", "by": "tekijä: {{author}}",
+    "saveFailed": "Paikkoja ei voitu tallentaa"
+  },
+  "advanced": {
+    "title": "Lisäasetukset", "subtitle": "Vianmääritys- ja testausasetukset.", "launcher": "Käynnistin", "launcherLanguage": "Käynnistimen kieli",
+    "launcherLanguageHint": "Pelin valikko seuraa sitä (englanti tai venäjä).", "systemDefault": "Järjestelmän kieli", "performance": "Suorituskyky",
+    "drawPipe": "Kaksivaiheinen GPU-liukuhihna", "readbacks": "Suorittimen lukemat GPU-tiedot", "preupload": "Taustalataus GPU-muistiin",
+    "liveResolution": "Tarkkuuden vaihto lennossa", "liveResolutionHint": "Vaihtaa lähdön ja esiasetuksen ilman uudelleenkäynnistystä, suorituskyvyn kustannuksella.",
+    "diagnostics": "Vianmääritys", "frameStats": "Kuvatilastot lokiin", "saveLog": "Tallenna loki ja tilastot tiedostoon",
+    "saveLogHint": "Tietokansion logs-kansioon.", "crashDiag": "Kaatumisten vianmääritys",
+    "crashDiagHint": "Tarkistaa pelin keon ja kirjaa siihen tehdyt kirjoitukset. Hieman hitaampi.", "gpuProfile": "GPU-profiili lokiin",
+    "extraEnv": "Lisäympäristömuuttujat", "extraEnvHint": "NIMI=arvo-parit välilyönnein eroteltuina, välitetään pelille.", "data": "Tiedot",
+    "dataFolder": "Tietokansio", "dataFolderHint": "Asetukset, tallennukset, varjostinvälimuisti ja lokit."
+  },
+  "log": {
+    "title": "Loki", "subtitle": "Pelin tuloste edellisestä käynnistyksestä.", "copy": "Kopioi", "copied": "Loki kopioitu", "clear": "Tyhjennä",
+    "openFolder": "Lokikansio", "empty": "Ei vielä mitään", "emptyHint": "Käynnistä peli nähdäksesi sen tulosteen tässä.", "follow": "Seuraa"
+  },
+  "options": {
+    "upscaler": { "fsr3": "AMD FSR 3.1", "fsr3Hint": "Renderöi lähtöä pienemmällä ja rakentaa kuvan uudelleen", "off": "Pois", "offHint": "Natiivitarkkuus" },
+    "preset": { "0": "Native AA", "1": "Laatu", "2": "Tasapainoinen", "3": "Suorituskyky", "4": "Ultrasuorituskyky" },
+    "fps": { "uncap": "Rajoittamaton", "uncapHint": "Kuva-aikapaikka: mikä tahansa kuvataajuus", "60": "60", "90": "90", "30": "30", "30Hint": "Kuten PS4:llä" },
+    "lod": { "-2": "Korkein", "0": "Kuten pelissä", "1": "Matalampi", "2": "Matalin" },
+    "present": { "Fifo": "V-Sync", "FifoRelaxed": "Mukautuva V-Sync", "Mailbox": "Mailbox", "Immediate": "Välitön (repeilyä)" },
+    "drawPipe": { "auto": "Automaattinen", "autoHint": "Päällä, kun suoritinsäikeitä on 8 tai enemmän", "on": "Päällä", "off": "Pois", "offHint": "Vakaampi, hitaampi" },
+    "readbacks": { "relaxed": "Joustava (oletus)", "precise": "Tarkka", "off": "Pois" },
+    "preupload": { "normal": "Normaali", "full": "Täysi", "fullHint": "Noin 3 Gt enemmän GPU-muistia", "off": "Pois" },
+    "live": { "0": "Pois (nopeampi)", "1": "Päällä", "auto": "Automaattinen" },
+    "effects": {
+      "effect_chromatic_aberration": "Kromaattinen aberraatio", "effect_dof": "Syväterävyys", "effect_motion_blur": "Liike-epäterävyys",
+      "effect_ssao": "Ympäristön varjostus (SSAO)", "effect_game_aa": "Pelin oma reunanpehmennys", "effect_dynamic_shadows": "Dynaamisten valojen varjot",
+      "effect_ssr": "Ruutuavaruuden heijastukset", "effect_ssrHint": "Ei alkuperäisessä pelissä"
+    }
+  }
+}

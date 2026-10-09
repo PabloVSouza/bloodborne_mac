@@ -40,15 +40,30 @@ export const EFFECTS: { key: string; label: TKey; hint?: TKey; defaultOn: boolea
   { key: "effect_ssr", label: "options.effects.effect_ssr", hint: "options.effects.effect_ssrHint", defaultOn: false },
 ];
 
-/** The PS4 system language the game sees (BB_LANGUAGE): names in their own language. */
+/** The PS4 system language the game sees (BB_LANGUAGE, SCE language codes): names in their own
+ *  language. Every one has its text in the game (dvdroot_ps4/msg). */
 export const GAME_LANGUAGES: Option<string>[] = [
-  { value: "1", label: "English", literal: true },
+  { value: "1", label: "English (US)", literal: true },
+  { value: "18", label: "English (UK)", literal: true },
+  { value: "17", label: "Português (Brasil)", literal: true },
+  { value: "7", label: "Português (Portugal)", literal: true },
+  { value: "3", label: "Español (España)", literal: true },
+  { value: "20", label: "Español (Latinoamérica)", literal: true },
   { value: "2", label: "Français", literal: true },
-  { value: "3", label: "Español", literal: true },
   { value: "4", label: "Deutsch", literal: true },
   { value: "5", label: "Italiano", literal: true },
+  { value: "6", label: "Nederlands", literal: true },
+  { value: "16", label: "Polski", literal: true },
   { value: "8", label: "Русский", literal: true },
+  { value: "19", label: "Türkçe", literal: true },
+  { value: "12", label: "Suomi", literal: true },
+  { value: "13", label: "Svenska", literal: true },
+  { value: "14", label: "Dansk", literal: true },
+  { value: "15", label: "Norsk", literal: true },
   { value: "0", label: "日本語", literal: true },
+  { value: "9", label: "한국어", literal: true },
+  { value: "11", label: "简体中文", literal: true },
+  { value: "10", label: "繁體中文", literal: true },
 ];
 
 export const FPS_MODES: Option<string>[] = [

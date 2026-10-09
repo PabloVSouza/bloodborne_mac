@@ -1,0 +1,105 @@
+{
+  "app": { "name": "Bloodborne", "tagline": "Apple Silicon 版", "version": "v{{version}}" },
+  "nav": { "home": "ホーム", "graphics": "グラフィック", "controls": "操作", "game": "ゲーム", "mods": "MOD", "patches": "パッチ", "advanced": "詳細設定", "log": "ログ" },
+  "play": {
+    "play": "プレイ", "stop": "停止", "running": "実行中",
+    "started": "ゲームを起動しています。初回はゲームのシェーダーをコンパイルするため数分かかります。",
+    "failedToStart": "ゲームを起動できませんでした", "failedToStop": "ゲームを停止できませんでした",
+    "exitedWithError": "ゲームがエラーで停止しました", "exitCode": "終了コード {{code}}：ログタブを確認してください。"
+  },
+  "common": {
+    "choose": "選択…", "showInFinder": "Finder で表示", "useDefault": "既定のフォルダを使う", "refresh": "更新",
+    "reset": "リセット", "default": "既定", "custom": "カスタム", "on": "オン", "off": "オフ", "auto": "自動",
+    "notAssigned": "未割り当て", "saveFailed": "保存できませんでした", "restartNote": "次回の起動時に反映されます。"
+  },
+  "home": {
+    "title": "夜を狩れ", "subtitle": "Apple Silicon でネイティブに動く Bloodborne。", "gameFolder": "ゲーム",
+    "gameFolderHint": "お手持ちの Bloodborne のダンプ：CUSA03173 フォルダ、バージョン 1.09。", "checking": "ゲームを確認しています…", "ready": "プレイできます",
+    "noFolder": "ゲームフォルダ（CUSA03173）を選択してください。", "summary": "概要", "upscaler": "アップスケーラー", "renderSize": "{{size}} で描画",
+    "frameRate": "フレームレート", "controller": "コントローラー", "mods": "MOD",
+    "modsActive": "{{count}} 件有効", "modsActive_other": "{{count}} 件有効", "modsOff": "オフ",
+    "firstStart": "初回はゲームのシェーダーをコンパイルするため数分かかります。2 回目以降はすぐに起動します。",
+    "lastRun": "前回のセッション", "lastRunOk": "ゲームは正常に終了しました。", "lastRunError": "ゲームは終了コード {{code}} で停止しました。",
+    "openData": "セーブとデータ"
+  },
+  "graphics": {
+    "title": "グラフィック", "subtitle": "ゲーム内メニュー（Insert または L3 + R3）と共有されます。", "display": "画面",
+    "outputRes": "出力解像度", "outputResHint": "画面上の画像サイズ。アップスケーラーが埋めます。", "fullscreen": "フルスクリーン",
+    "presentMode": "フレームの表示方式", "showFps": "FPS を表示", "upscaling": "アップスケーリング",
+    "upscalingHint": "ゲームは出力解像度より低い解像度で描画し、FSR が画像を再構成します。Apple Silicon で最も効果の大きい設定です。",
+    "upscaler": "アップスケーラー", "preset": "品質プリセット", "presetRender": "{{name}} ・ {{size}} で描画",
+    "sharpen": "シャープ化（RCAS）", "sharpness": "シャープネス", "objectMotion": "キャラクターのモーションベクトル",
+    "objectMotionHint": "FSR 使用時に動くキャラクターの残像が減ります。Apple の GPU では 1 フレームあたり約 5 ms かかります。",
+    "detail": "ディテール", "modelLod": "モデルの詳細度"
+  },
+  "controls": {
+    "title": "操作", "subtitle": "割り当ては bbport.ini に保存され、ゲームの起動時に反映されます。",
+    "controller": "コントローラー", "controllerHint": "選んだコントローラーは接続されるとすぐに使われます。", "auto": "自動（最初に接続されたもの）",
+    "notConnected": "{{name}}（未接続）", "noControllers": "コントローラーが接続されていません。USB または Bluetooth で接続して更新してください。",
+    "bindings": "割り当て", "gamepad": "コントローラー", "keyboard": "キーボード", "assign": "割り当て",
+    "press": "ボタンまたはキーを押してください…（Esc でキャンセル）", "keyboardOnly": "キーボードのみ", "resetAll": "すべてリセット",
+    "groups": { "Face buttons": "アクションボタン", "Shoulders and sticks": "トリガーとスティック", "System": "システム", "D-pad": "方向キー", "Movement and camera": "移動とカメラ" },
+    "inputs": {
+      "cross": "×ボタン", "circle": "○ボタン", "square": "□ボタン", "triangle": "△ボタン", "l1": "L1", "r1": "R1", "l2": "L2", "r2": "R2",
+      "l3": "L3", "r3": "R3", "options": "OPTIONS", "touchpad": "タッチパッド（左半分）", "touchpad_right": "タッチパッド（右半分）",
+      "up": "方向キー上", "down": "方向キー下", "left": "方向キー左", "right": "方向キー右",
+      "move_up": "前進", "move_down": "後退", "move_left": "左に移動", "move_right": "右に移動",
+      "look_up": "カメラ上", "look_down": "カメラ下", "look_left": "カメラ左", "look_right": "カメラ右"
+    },
+    "or": "または"
+  },
+  "game": {
+    "title": "ゲーム", "subtitle": "起動時にゲームへ適用されるパッチです。", "language": "言語", "systemLanguage": "ゲームの言語",
+    "systemLanguageHint": "ゲームから見える PS4 のシステム言語。", "effects": "エフェクト",
+    "effectsHint": "好みでないものや、少しでも性能を上げたいときはオフにしてください。", "frameRate": "フレームレート",
+    "fpsMode": "フレームレートモード", "fpsLimit": "フレームレート上限", "fpsLimitHint": "0 は上限なしです。",
+    "extras": "その他", "skipIntro": "オープニングムービーをスキップ", "debugCamera": "フリーカメラ",
+    "debugCameraHint": "×ボタンを押しながら L3 でモードを切り替えます（キーボード：Space + Z）。", "debugMenu": "デバッグメニュー",
+    "debugMenuHint": "ゲームの dvdroot_ps4/font に DbgFont14h.ccm と DbgFont14h.tpf が必要です。タッチパッドの左半分または Tab で開きます。",
+    "saves": "セーブデータ", "savesFolder": "セーブデータのフォルダ"
+  },
+  "mods": {
+    "title": "MOD", "subtitle": "ファイル単位の MOD を順番に読み込みます。後のものが前のものを上書きします。ゲームフォルダは変更されません。",
+    "enabled": "MOD を読み込む", "folder": "MOD フォルダ",
+    "folderHint": "各 MOD は 1 つのフォルダです（dvdroot_ps4/ を含むか、chr/ などのゲームのフォルダを直接含む）。", "list": "読み込み順",
+    "empty": "MOD がありません", "emptyHint": "MOD のフォルダを MOD フォルダに入れて更新してください。", "moveUp": "先に読み込む",
+    "moveDown": "後に読み込む", "saveFailed": "MOD を保存できませんでした"
+  },
+  "patches": {
+    "title": "パッチ", "subtitle": "shadPS4 の XML 形式によるサードパーティ製パッチ（ゲームバージョン 01.09 用）。", "folder": "パッチフォルダ",
+    "folderHint": "XML パッチファイル。", "list": "利用できるパッチ", "empty": "パッチがありません",
+    "emptyHint": "shadPS4 形式の XML パッチファイルをパッチフォルダに入れて更新してください。", "by": "作者：{{author}}",
+    "saveFailed": "パッチを保存できませんでした"
+  },
+  "advanced": {
+    "title": "詳細設定", "subtitle": "トラブルシューティングとテスト用のオプション。", "launcher": "ランチャー", "launcherLanguage": "ランチャーの言語",
+    "launcherLanguageHint": "ゲーム内メニューもこれに従います（英語またはロシア語）。", "systemDefault": "システムの言語", "performance": "パフォーマンス",
+    "drawPipe": "2 段階 GPU パイプライン", "readbacks": "CPU による GPU データの読み取り", "preupload": "GPU メモリへのバックグラウンド転送",
+    "liveResolution": "解像度の即時変更", "liveResolutionHint": "再起動せずに出力とプリセットを変更できますが、性能が下がります。",
+    "diagnostics": "診断", "frameStats": "ログにフレーム統計を出力", "saveLog": "ログと統計をファイルに保存",
+    "saveLogHint": "データフォルダ内の logs フォルダに保存します。", "crashDiag": "クラッシュ診断",
+    "crashDiagHint": "ゲームのヒープを検査し、書き込みを記録します。少し遅くなります。", "gpuProfile": "ログに GPU プロファイルを出力",
+    "extraEnv": "追加の環境変数", "extraEnvHint": "スペース区切りの 名前=値 の組。ゲームに渡されます。", "data": "データ",
+    "dataFolder": "データフォルダ", "dataFolderHint": "設定、セーブデータ、シェーダーキャッシュ、ログ。"
+  },
+  "log": {
+    "title": "ログ", "subtitle": "前回の起動時のゲームの出力。", "copy": "コピー", "copied": "ログをコピーしました", "clear": "消去",
+    "openFolder": "ログフォルダ", "empty": "まだ何もありません", "emptyHint": "ゲームを起動すると、ここに出力が表示されます。", "follow": "追従"
+  },
+  "options": {
+    "upscaler": { "fsr3": "AMD FSR 3.1", "fsr3Hint": "出力より低い解像度で描画して再構成", "off": "オフ", "offHint": "ネイティブ解像度" },
+    "preset": { "0": "Native AA", "1": "品質", "2": "バランス", "3": "パフォーマンス", "4": "ウルトラパフォーマンス" },
+    "fps": { "uncap": "無制限", "uncapHint": "フレーム時間パッチ：任意のフレームレート", "60": "60", "90": "90", "30": "30", "30Hint": "PS4 と同じ" },
+    "lod": { "-2": "最高", "0": "ゲームのまま", "1": "低め", "2": "最低" },
+    "present": { "Fifo": "V-Sync", "FifoRelaxed": "アダプティブ V-Sync", "Mailbox": "Mailbox", "Immediate": "即時（ティアリングあり）" },
+    "drawPipe": { "auto": "自動", "autoHint": "CPU スレッドが 8 以上のときオン", "on": "オン", "off": "オフ", "offHint": "安定するが遅い" },
+    "readbacks": { "relaxed": "Relaxed（既定）", "precise": "Precise", "off": "オフ" },
+    "preupload": { "normal": "標準", "full": "フル", "fullHint": "GPU メモリを約 3 GB 多く使用", "off": "オフ" },
+    "live": { "0": "オフ（高速）", "1": "オン", "auto": "自動" },
+    "effects": {
+      "effect_chromatic_aberration": "色収差", "effect_dof": "被写界深度", "effect_motion_blur": "モーションブラー",
+      "effect_ssao": "アンビエントオクルージョン（SSAO）", "effect_game_aa": "ゲーム本来のアンチエイリアス", "effect_dynamic_shadows": "動的ライトの影",
+      "effect_ssr": "スクリーンスペース反射", "effect_ssrHint": "オリジナルのゲームにはない機能"
+    }
+  }
+}

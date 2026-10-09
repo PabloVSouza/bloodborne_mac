@@ -16,7 +16,7 @@ it).
 npm ci
 npm run dev          # the interface in a browser, with mock data (src/lib/mockApi.ts); #graphics etc. opens a tab
 npm run tauri dev    # the app, against a checkout's build (out/bb-probe; bash build.sh first)
-npm run check        # TypeScript and ESLint
+npm run check        # TypeScript, ESLint and the locales' keys
 npx tauri build      # Bloodborne.app (packaging/macos.sh adds the game to it)
 ```
 
@@ -56,6 +56,6 @@ These are enforced by ESLint (`eslint.config.js`) where possible.
 | `src/hooks` | TanStack Query hooks and small effects |
 | `src/stores` | Zustand stores |
 | `src/lib` | Backend calls (`api.ts`, `mockApi.ts`), types, query client, `data/` (options, controls) |
-| `src/i18n` | i18next setup and locales (English, Português do Brasil) |
+| `src/i18n` | i18next setup and locales: the game's 20 languages (`scripts/check_locales.py` checks them against `en.json`) |
 | `src-tauri` | Rust backend, Tauri config, icons |
 | `scripts/make_icon.swift` | Draws the icon the app's icons are made from |

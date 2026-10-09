@@ -1,0 +1,105 @@
+{
+  "app": { "name": "Bloodborne", "tagline": "Apple Silicon 版", "version": "v{{version}}" },
+  "nav": { "home": "首頁", "graphics": "圖形", "controls": "操作", "game": "遊戲", "mods": "模組", "patches": "修補", "advanced": "進階", "log": "記錄" },
+  "play": {
+    "play": "開始遊戲", "stop": "停止", "running": "執行中",
+    "started": "遊戲正在啟動。首次啟動會編譯遊戲的著色器，需要幾分鐘。",
+    "failedToStart": "遊戲未能啟動", "failedToStop": "無法停止遊戲",
+    "exitedWithError": "遊戲因錯誤而停止", "exitCode": "結束代碼 {{code}}：請查看「記錄」分頁。"
+  },
+  "common": {
+    "choose": "選擇…", "showInFinder": "在 Finder 中顯示", "useDefault": "使用預設資料夾", "refresh": "重新整理",
+    "reset": "重設", "default": "預設", "custom": "自訂", "on": "開", "off": "關", "auto": "自動",
+    "notAssigned": "未指定", "saveFailed": "無法儲存", "restartNote": "下次啟動時生效。"
+  },
+  "home": {
+    "title": "狩獵長夜", "subtitle": "在 Apple Silicon 上原生執行的 Bloodborne。", "gameFolder": "遊戲",
+    "gameFolderHint": "你的 Bloodborne 傾印：CUSA03173 資料夾，版本 1.09。", "checking": "正在檢查遊戲…", "ready": "可以開始遊戲",
+    "noFolder": "請選擇遊戲資料夾（CUSA03173）。", "summary": "概覽", "upscaler": "超解析度", "renderSize": "以 {{size}} 算繪",
+    "frameRate": "影格率", "controller": "控制器", "mods": "模組",
+    "modsActive": "已啟用 {{count}} 個", "modsActive_other": "已啟用 {{count}} 個", "modsOff": "已關閉",
+    "firstStart": "首次啟動會編譯遊戲的著色器，因此需要幾分鐘。之後的啟動會很快。",
+    "lastRun": "上次執行", "lastRunOk": "遊戲已正常關閉。", "lastRunError": "遊戲以結束代碼 {{code}} 停止。",
+    "openData": "存檔與資料"
+  },
+  "graphics": {
+    "title": "圖形", "subtitle": "與遊戲內選單（Insert 或 L3 + R3）共用。", "display": "顯示",
+    "outputRes": "輸出解析度", "outputResHint": "畫面上影像的尺寸，由超解析度填滿。", "fullscreen": "全螢幕",
+    "presentMode": "影格呈現方式", "showFps": "顯示 FPS", "upscaling": "超解析度",
+    "upscalingHint": "遊戲以低於輸出解析度的解析度算繪，由 FSR 重建影像：這是在 Apple Silicon 上提升效能最多的設定。",
+    "upscaler": "超解析度", "preset": "品質預設", "presetRender": "{{name}} · 以 {{size}} 算繪",
+    "sharpen": "銳化（RCAS）", "sharpness": "銳化強度", "objectMotion": "角色運動向量",
+    "objectMotionHint": "使用 FSR 時減少移動角色的殘影。在 Apple GPU 上每個影格約耗時 5 毫秒。",
+    "detail": "細節", "modelLod": "模型細節"
+  },
+  "controls": {
+    "title": "操作", "subtitle": "按鍵指定儲存在 bbport.ini 中，在遊戲啟動時生效。",
+    "controller": "控制器", "controllerHint": "所選控制器一連接就會使用。", "auto": "自動（第一個連接的控制器）",
+    "notConnected": "{{name}}（未連接）", "noControllers": "未連接控制器。請透過 USB 或藍牙連接後重新整理。",
+    "bindings": "按鍵指定", "gamepad": "控制器", "keyboard": "鍵盤", "assign": "指定",
+    "press": "請按下按鈕或按鍵…（Esc 取消）", "keyboardOnly": "僅鍵盤", "resetAll": "全部重設",
+    "groups": { "Face buttons": "動作按鈕", "Shoulders and sticks": "肩部按鈕與搖桿", "System": "系統", "D-pad": "方向鍵", "Movement and camera": "移動與鏡頭" },
+    "inputs": {
+      "cross": "叉叉鈕", "circle": "圓圈鈕", "square": "方塊鈕", "triangle": "三角鈕", "l1": "L1", "r1": "R1", "l2": "L2", "r2": "R2",
+      "l3": "L3", "r3": "R3", "options": "OPTIONS", "touchpad": "觸控板（左半部）", "touchpad_right": "觸控板（右半部）",
+      "up": "方向鍵上", "down": "方向鍵下", "left": "方向鍵左", "right": "方向鍵右",
+      "move_up": "前進", "move_down": "後退", "move_left": "向左移動", "move_right": "向右移動",
+      "look_up": "鏡頭向上", "look_down": "鏡頭向下", "look_left": "鏡頭向左", "look_right": "鏡頭向右"
+    },
+    "or": "或"
+  },
+  "game": {
+    "title": "遊戲", "subtitle": "遊戲啟動時套用的修補。", "language": "語言", "systemLanguage": "遊戲語言",
+    "systemLanguageHint": "遊戲看到的 PS4 系統語言。", "effects": "效果",
+    "effectsHint": "關閉你不喜歡的效果，或用來稍微提升效能。", "frameRate": "影格率",
+    "fpsMode": "影格率模式", "fpsLimit": "影格率上限", "fpsLimitHint": "0 表示不限制。",
+    "extras": "其他", "skipIntro": "略過開場影片", "debugCamera": "自由鏡頭",
+    "debugCameraHint": "按住叉叉鈕並按 L3 切換模式（鍵盤：空白鍵 + Z）。", "debugMenu": "除錯選單",
+    "debugMenuHint": "需要在遊戲的 dvdroot_ps4/font 中放入 DbgFont14h.ccm 和 DbgFont14h.tpf。以觸控板左半部或 Tab 開啟。",
+    "saves": "存檔", "savesFolder": "存檔資料夾"
+  },
+  "mods": {
+    "title": "模組", "subtitle": "散裝檔案模組依序載入：後載入的會覆蓋先載入的。遊戲資料夾永遠不會被修改。",
+    "enabled": "載入模組", "folder": "模組資料夾",
+    "folderHint": "每個模組都是一個資料夾（包含 dvdroot_ps4/，或直接包含 chr/ 等遊戲資料夾）。", "list": "載入順序",
+    "empty": "沒有模組", "emptyHint": "將模組資料夾放入模組資料夾後重新整理。", "moveUp": "提前載入",
+    "moveDown": "延後載入", "saveFailed": "無法儲存模組"
+  },
+  "patches": {
+    "title": "修補", "subtitle": "shadPS4 XML 格式的第三方修補，適用於遊戲版本 01.09。", "folder": "修補資料夾",
+    "folderHint": "XML 修補檔案。", "list": "可用的修補", "empty": "沒有修補",
+    "emptyHint": "將 shadPS4 格式的 XML 修補檔案放入修補資料夾後重新整理。", "by": "作者：{{author}}",
+    "saveFailed": "無法儲存修補"
+  },
+  "advanced": {
+    "title": "進階", "subtitle": "用於疑難排解和測試的選項。", "launcher": "啟動器", "launcherLanguage": "啟動器語言",
+    "launcherLanguageHint": "遊戲內選單也會跟隨（英文或俄文）。", "systemDefault": "系統語言", "performance": "效能",
+    "drawPipe": "兩階段 GPU 管線", "readbacks": "CPU 讀取的 GPU 資料", "preupload": "背景上傳至 GPU 記憶體",
+    "liveResolution": "即時變更解析度", "liveResolutionHint": "不需重新啟動即可變更輸出和預設，但會降低效能。",
+    "diagnostics": "診斷", "frameStats": "在記錄中寫入影格統計", "saveLog": "將記錄和統計儲存至檔案",
+    "saveLogHint": "儲存在資料資料夾的 logs 資料夾中。", "crashDiag": "當機診斷",
+    "crashDiagHint": "檢查遊戲的堆積並記錄對它的寫入。會稍慢一些。", "gpuProfile": "在記錄中寫入 GPU 效能分析",
+    "extraEnv": "額外的環境變數", "extraEnvHint": "以空格分隔的 名稱=值 配對，傳給遊戲。", "data": "資料",
+    "dataFolder": "資料資料夾", "dataFolderHint": "設定、存檔、著色器快取與記錄。"
+  },
+  "log": {
+    "title": "記錄", "subtitle": "上次啟動時遊戲的輸出。", "copy": "拷貝", "copied": "已拷貝記錄", "clear": "清除",
+    "openFolder": "記錄資料夾", "empty": "尚無內容", "emptyHint": "啟動遊戲後會在這裡顯示它的輸出。", "follow": "跟隨"
+  },
+  "options": {
+    "upscaler": { "fsr3": "AMD FSR 3.1", "fsr3Hint": "以低於輸出的解析度算繪並重建影像", "off": "關", "offHint": "原生解析度" },
+    "preset": { "0": "Native AA", "1": "品質", "2": "平衡", "3": "效能", "4": "極致效能" },
+    "fps": { "uncap": "不限", "uncapHint": "影格時間修補：任何影格率", "60": "60", "90": "90", "30": "30", "30Hint": "與 PS4 相同" },
+    "lod": { "-2": "最高", "0": "遊戲預設", "1": "較低", "2": "最低" },
+    "present": { "Fifo": "垂直同步", "FifoRelaxed": "自適應垂直同步", "Mailbox": "Mailbox", "Immediate": "立即（會撕裂）" },
+    "drawPipe": { "auto": "自動", "autoHint": "CPU 執行緒數為 8 或以上時開啟", "on": "開", "off": "關", "offHint": "較穩定，但較慢" },
+    "readbacks": { "relaxed": "寬鬆（預設）", "precise": "精確", "off": "關" },
+    "preupload": { "normal": "一般", "full": "完整", "fullHint": "多使用約 3 GB GPU 記憶體", "off": "關" },
+    "live": { "0": "關（較快）", "1": "開", "auto": "自動" },
+    "effects": {
+      "effect_chromatic_aberration": "色差", "effect_dof": "景深", "effect_motion_blur": "動態模糊",
+      "effect_ssao": "環境光遮蔽（SSAO）", "effect_game_aa": "遊戲內建反鋸齒", "effect_dynamic_shadows": "動態光源陰影",
+      "effect_ssr": "螢幕空間反射", "effect_ssrHint": "原版遊戲中沒有"
+    }
+  }
+}

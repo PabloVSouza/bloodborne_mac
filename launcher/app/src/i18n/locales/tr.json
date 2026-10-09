@@ -1,0 +1,105 @@
+{
+  "app": { "name": "Bloodborne", "tagline": "Apple Silicon için", "version": "v{{version}}" },
+  "nav": { "home": "Ana sayfa", "graphics": "Grafik", "controls": "Kontroller", "game": "Oyun", "mods": "Modlar", "patches": "Yamalar", "advanced": "Gelişmiş", "log": "Günlük" },
+  "play": {
+    "play": "Oyna", "stop": "Durdur", "running": "Çalışıyor",
+    "started": "Oyun başlıyor. İlk açılışta oyunun gölgelendiricileri derlenir, bu birkaç dakika sürer.",
+    "failedToStart": "Oyun başlamadı", "failedToStop": "Oyun durdurulamadı",
+    "exitedWithError": "Oyun bir hatayla durdu", "exitCode": "Çıkış kodu {{code}}: Günlük sekmesine bakın."
+  },
+  "common": {
+    "choose": "Seç…", "showInFinder": "Finder'da göster", "useDefault": "Varsayılan klasörü kullan", "refresh": "Yenile",
+    "reset": "Sıfırla", "default": "Varsayılan", "custom": "Özel", "on": "Açık", "off": "Kapalı", "auto": "Otomatik",
+    "notAssigned": "Atanmadı", "saveFailed": "Kaydedilemedi", "restartNote": "Bir sonraki açılışta geçerli olur."
+  },
+  "home": {
+    "title": "Geceyi avla", "subtitle": "Bloodborne, Apple Silicon'da yerel olarak.", "gameFolder": "Oyun",
+    "gameFolderHint": "Bloodborne kopyanız: CUSA03173 klasörü, sürüm 1.09.", "checking": "Oyun denetleniyor…", "ready": "Oynamaya hazır",
+    "noFolder": "Oyun klasörünü seçin (CUSA03173).", "summary": "Özet", "upscaler": "Ölçekleyici", "renderSize": "{{size}} çözünürlükte işler",
+    "frameRate": "Kare hızı", "controller": "Kumanda", "mods": "Modlar",
+    "modsActive": "{{count}} etkin", "modsActive_one": "{{count}} etkin", "modsActive_other": "{{count}} etkin", "modsOff": "Kapalı",
+    "firstStart": "İlk açılış oyunun gölgelendiricilerini derler, bu yüzden birkaç dakika sürer. Sonraki açılışlar hızlıdır.",
+    "lastRun": "Son oturum", "lastRunOk": "Oyun normal şekilde kapandı.", "lastRunError": "Oyun {{code}} çıkış koduyla durdu.",
+    "openData": "Kayıtlar ve veriler"
+  },
+  "graphics": {
+    "title": "Grafik", "subtitle": "Oyun içi menüyle ortak (Insert veya L3 + R3).", "display": "Ekran",
+    "outputRes": "Çıkış çözünürlüğü", "outputResHint": "Görüntünün ekrandaki boyutu. Ölçekleyici onu doldurur.", "fullscreen": "Tam ekran",
+    "presentMode": "Kare sunumu", "showFps": "FPS göster", "upscaling": "Ölçekleme",
+    "upscalingHint": "Oyun çıkış çözünürlüğünün altında işler ve FSR görüntüyü yeniden oluşturur: Apple Silicon'da en büyük performans kazancı.",
+    "upscaler": "Ölçekleyici", "preset": "Kalite ön ayarı", "presetRender": "{{name}} · {{size}} çözünürlükte işler",
+    "sharpen": "Keskinleştirme (RCAS)", "sharpness": "Keskinlik", "objectMotion": "Karakter hareket vektörleri",
+    "objectMotionHint": "FSR ile hareket eden karakterlerde daha az iz. Apple GPU'larında kare başına yaklaşık 5 ms sürer.",
+    "detail": "Ayrıntı", "modelLod": "Model ayrıntısı"
+  },
+  "controls": {
+    "title": "Kontroller", "subtitle": "Atamalar bbport.ini'de saklanır ve oyun başladığında geçerli olur.",
+    "controller": "Kumanda", "controllerHint": "Seçilen kumanda bağlanır bağlanmaz kullanılır.", "auto": "Otomatik (ilk bağlanan)",
+    "notConnected": "{{name}} (bağlı değil)", "noControllers": "Bağlı kumanda yok. USB veya Bluetooth ile bir kumanda bağlayıp yenileyin.",
+    "bindings": "Atamalar", "gamepad": "Kumanda", "keyboard": "Klavye", "assign": "Ata",
+    "press": "Bir düğmeye veya tuşa basın… (Esc iptal eder)", "keyboardOnly": "Yalnızca klavye", "resetAll": "Tümünü sıfırla",
+    "groups": { "Face buttons": "Eylem düğmeleri", "Shoulders and sticks": "Tetikler ve çubuklar", "System": "Sistem", "D-pad": "Yön tuşları", "Movement and camera": "Hareket ve kamera" },
+    "inputs": {
+      "cross": "Çarpı", "circle": "Daire", "square": "Kare", "triangle": "Üçgen", "l1": "L1", "r1": "R1", "l2": "L2", "r2": "R2",
+      "l3": "L3", "r3": "R3", "options": "Options", "touchpad": "Dokunmatik yüzey (sol yarı)", "touchpad_right": "Dokunmatik yüzey (sağ yarı)",
+      "up": "Yön yukarı", "down": "Yön aşağı", "left": "Yön sola", "right": "Yön sağa",
+      "move_up": "İleri", "move_down": "Geri", "move_left": "Sola", "move_right": "Sağa",
+      "look_up": "Kamera yukarı", "look_down": "Kamera aşağı", "look_left": "Kamera sola", "look_right": "Kamera sağa"
+    },
+    "or": "veya"
+  },
+  "game": {
+    "title": "Oyun", "subtitle": "Oyun başlarken uygulanan yamalar.", "language": "Dil", "systemLanguage": "Oyun dili",
+    "systemLanguageHint": "Oyunun gördüğü PS4 sistem dili.", "effects": "Efektler",
+    "effectsHint": "Beğenmediklerinizi ya da biraz performans için kapatın.", "frameRate": "Kare hızı",
+    "fpsMode": "Kare hızı modu", "fpsLimit": "Kare hızı sınırı", "fpsLimitHint": "0 sınır yok demektir.",
+    "extras": "Ekstralar", "skipIntro": "Giriş videolarını atla", "debugCamera": "Serbest kamera",
+    "debugCameraHint": "Çarpı'yı basılı tutup modlar arasında geçmek için L3'e basın (klavye: Boşluk + Z).", "debugMenu": "Hata ayıklama menüsü",
+    "debugMenuHint": "Oyunun dvdroot_ps4/font klasöründe DbgFont14h.ccm ve DbgFont14h.tpf gerekir. Dokunmatik yüzeyin sol yarısı veya Tab ile açılır.",
+    "saves": "Kayıtlar", "savesFolder": "Kayıt klasörü"
+  },
+  "mods": {
+    "title": "Modlar", "subtitle": "Gevşek dosyalı modlar sırayla yüklenir: sonrakiler öncekilerin yerini alır. Oyun klasörü asla değiştirilmez.",
+    "enabled": "Modları yükle", "folder": "Mod klasörü",
+    "folderHint": "Her mod bir klasördür (dvdroot_ps4/ ile ya da doğrudan chr/ gibi oyun klasörleriyle).", "list": "Yükleme sırası",
+    "empty": "Mod yok", "emptyHint": "Mod klasörlerini mod klasörüne koyup yenileyin.", "moveUp": "Daha önce yükle",
+    "moveDown": "Daha sonra yükle", "saveFailed": "Modlar kaydedilemedi"
+  },
+  "patches": {
+    "title": "Yamalar", "subtitle": "Oyun sürümü 01.09 için shadPS4 XML biçimindeki üçüncü taraf yamalar.", "folder": "Yama klasörü",
+    "folderHint": "XML yama dosyaları.", "list": "Mevcut yamalar", "empty": "Yama yok",
+    "emptyHint": "shadPS4 biçimindeki XML yama dosyalarını yama klasörüne koyup yenileyin.", "by": "yapan: {{author}}",
+    "saveFailed": "Yamalar kaydedilemedi"
+  },
+  "advanced": {
+    "title": "Gelişmiş", "subtitle": "Sorun giderme ve test seçenekleri.", "launcher": "Başlatıcı", "launcherLanguage": "Başlatıcı dili",
+    "launcherLanguageHint": "Oyun içi menü bunu izler (İngilizce veya Rusça).", "systemDefault": "Sistem dili", "performance": "Performans",
+    "drawPipe": "İki aşamalı GPU hattı", "readbacks": "CPU'nun okuduğu GPU verileri", "preupload": "GPU belleğine arka planda yükleme",
+    "liveResolution": "Anlık çözünürlük değişimi", "liveResolutionHint": "Çıkışı ve ön ayarı yeniden başlatmadan değiştirir, performans pahasına.",
+    "diagnostics": "Tanılama", "frameStats": "Günlükte kare istatistikleri", "saveLog": "Günlüğü ve istatistikleri dosyaya kaydet",
+    "saveLogHint": "Veri klasöründeki logs klasörüne.", "crashDiag": "Çökme tanılama",
+    "crashDiagHint": "Oyunun yığınını denetler ve ona yapılan yazmaları kaydeder. Biraz daha yavaş.", "gpuProfile": "Günlükte GPU profili",
+    "extraEnv": "Ek ortam değişkenleri", "extraEnvHint": "Boşlukla ayrılmış AD=değer çiftleri, oyuna iletilir.", "data": "Veriler",
+    "dataFolder": "Veri klasörü", "dataFolderHint": "Ayarlar, kayıtlar, gölgelendirici önbelleği ve günlükler."
+  },
+  "log": {
+    "title": "Günlük", "subtitle": "Oyunun son açılıştaki çıktısı.", "copy": "Kopyala", "copied": "Günlük kopyalandı", "clear": "Temizle",
+    "openFolder": "Günlük klasörü", "empty": "Henüz bir şey yok", "emptyHint": "Çıktısını burada görmek için oyunu başlatın.", "follow": "Takip et"
+  },
+  "options": {
+    "upscaler": { "fsr3": "AMD FSR 3.1", "fsr3Hint": "Çıkışın altında işler ve görüntüyü yeniden oluşturur", "off": "Kapalı", "offHint": "Yerel çözünürlük" },
+    "preset": { "0": "Native AA", "1": "Kalite", "2": "Dengeli", "3": "Performans", "4": "Ultra performans" },
+    "fps": { "uncap": "Sınırsız", "uncapHint": "Kare süresi yaması: her kare hızı", "60": "60", "90": "90", "30": "30", "30Hint": "PS4'teki gibi" },
+    "lod": { "-2": "En yüksek", "0": "Oyundaki gibi", "1": "Daha düşük", "2": "En düşük" },
+    "present": { "Fifo": "V-Sync", "FifoRelaxed": "Uyarlanabilir V-Sync", "Mailbox": "Mailbox", "Immediate": "Anında (yırtılmalı)" },
+    "drawPipe": { "auto": "Otomatik", "autoHint": "8 veya daha fazla CPU iş parçacığında açık", "on": "Açık", "off": "Kapalı", "offHint": "Daha kararlı, daha yavaş" },
+    "readbacks": { "relaxed": "Esnek (varsayılan)", "precise": "Kesin", "off": "Kapalı" },
+    "preupload": { "normal": "Normal", "full": "Tam", "fullHint": "Yaklaşık 3 GB daha fazla GPU belleği", "off": "Kapalı" },
+    "live": { "0": "Kapalı (daha hızlı)", "1": "Açık", "auto": "Otomatik" },
+    "effects": {
+      "effect_chromatic_aberration": "Renk sapması", "effect_dof": "Alan derinliği", "effect_motion_blur": "Hareket bulanıklığı",
+      "effect_ssao": "Ortam perdelemesi (SSAO)", "effect_game_aa": "Oyunun kendi kenar yumuşatması", "effect_dynamic_shadows": "Dinamik ışık gölgeleri",
+      "effect_ssr": "Ekran alanı yansımaları", "effect_ssrHint": "Orijinal oyunda yoktu"
+    }
+  }
+}

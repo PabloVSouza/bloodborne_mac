@@ -9,7 +9,7 @@
     "typecheck": "tsc --noEmit",
     "tauri": "tauri",
     "lint": "eslint .",
-    "check": "tsc --noEmit && eslint ."
+    "check": "tsc --noEmit && eslint . && python3 scripts/check_locales.py"
   },
   "dependencies": {
     "@base-ui/react": "^1.9.0",
