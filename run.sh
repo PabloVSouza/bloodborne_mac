@@ -30,6 +30,10 @@ if [[ $(uname -s) == Darwin ]]; then
     # BB_VK_DRIVER=kosmickrisp (native arm64, macOS 26+): Mesa's Vulkan-on-Metal 4 driver from
     # scripts/macos/build-kosmickrisp.sh instead.
     icd=$PWD/deps/macos-$BB_ARCH/share/vulkan/icd.d/MoltenVK_icd.json
+    # A release (packaging/macos.sh) carries its MoltenVK next to this script.
+    if [[ -n ${BB_PREBUILT:-} && -f $PWD/share/vulkan/icd.d/MoltenVK_icd.json ]]; then
+        icd=$PWD/share/vulkan/icd.d/MoltenVK_icd.json
+    fi
     if [[ ${BB_VK_DRIVER:-} == kosmickrisp ]]; then
         icd=$(ls "$PWD"/deps/macos-arm64-kk/share/vulkan/icd.d/kosmickrisp*.json 2>/dev/null | head -1)
         [[ -n $icd ]] || { echo 'KosmicKrisp not built (scripts/macos/build-kosmickrisp.sh)' >&2; exit 1; }
@@ -52,6 +56,10 @@ fi
 data=${BB_DATA_DIR:-.}
 out=$data/out
 mkdir -p "$out"
+# The GPU library's caches (shaders, pipelines) under the saves' folder: without it a fresh
+# release folder fell back to shadPS4's own directory (macOS: ~/Library/Application Support/shadPS4).
+mkdir -p "${BB_USER_DIR:-$data/user}"
+export BB_GPU_USER_DIR=${BB_GPU_USER_DIR:-$(cd "${BB_USER_DIR:-$data/user}" && pwd)}
 export BB_CONFIG=${BB_CONFIG:-$data/bbport.ini}
 # FSR 4.1.1 assets (tools/fsr4cap/build_assets.sh): next to run.sh or in the data directory.
 if [[ -z ${BB_FSR411_DIR:-} && ! -d fsr4_411 && -d $data/fsr4_411 ]]; then

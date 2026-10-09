@@ -1,0 +1,69 @@
+# Builds the native Apple Silicon program and packages it (packaging/macos.sh).
+# Every push to main and every pull request: the package as a workflow artifact.
+# A tag v* (git tag v0.1.0 && git push origin v0.1.0): a GitHub release with the package.
+name: macOS
+
+on:
+  push:
+    branches: [main]
+    tags: ['v*']
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: write # releases
+
+concurrency:
+  group: macos-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: macos-15 # Apple Silicon
+    timeout-minutes: 240
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          submodules: recursive
+          fetch-depth: 0 # git describe for the version
+
+      - name: Tools
+        run: brew install bash pkgconf glslang nasm cmake ninja
+
+      # The libraries build-deps.sh builds (MoltenVK, SDL3, FFmpeg, ...): ~1 h without the cache.
+      - name: Dependency cache
+        uses: actions/cache@v4
+        with:
+          path: deps/macos-arm64
+          key: deps-macos-arm64-${{ hashFiles('scripts/macos/build-deps.sh') }}
+
+      - name: Build
+        run: BB_ARCH=arm64 bash build.sh
+
+      - name: Package
+        run: |
+          if [[ $GITHUB_REF == refs/tags/v* ]]; then export BB_VERSION=${GITHUB_REF_NAME}; fi
+          bash packaging/macos.sh
+          echo "PACKAGE=$(ls dist/bloodborne_mac-*.tar.gz)" >> "$GITHUB_ENV"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: bloodborne_mac-arm64
+          path: ${{ env.PACKAGE }}
+          if-no-files-found: error
+
+      - name: Release
+        if: startsWith(github.ref, 'refs/tags/v')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cat > notes.md <<'EOF'
+          Native Apple Silicon build of bloodborne_mac. **No game files are included**: you need your
+          own dump of Bloodborne (CUSA03173, v1.09).
+
+          Unpack, then double-click `play.command` (see `RELEASE.txt` inside). Needs Homebrew's bash
+          and Python 3 (`brew install bash python`). If macOS blocks it, run
+          `xattr -dr com.apple.quarantine .` in the unpacked folder.
+          EOF
+          gh release create "$GITHUB_REF_NAME" "$PACKAGE" --title "bloodborne_mac $GITHUB_REF_NAME" \
+            --notes-file notes.md --generate-notes

@@ -57,6 +57,15 @@ by the GPU. What was measured and changed, and what could still be gained:
 - Your decrypted game dump: the `CUSA03173` folder at version 1.09 (copy a dumped update over the
   base game, replacing files).
 
+## Download
+
+Prebuilt packages for Apple Silicon are on the
+[releases page](https://github.com/PabloVSouza/bloodborne_mac/releases) (built by GitHub Actions,
+`.github/workflows/macos.yml`). Unpack and double-click `play.command`; it asks for the game
+folder once. You still need Homebrew's bash and Python 3 (`brew install bash python`). The
+package is not notarized: if macOS blocks it, run `xattr -dr com.apple.quarantine .` in the
+unpacked folder.
+
 ## Build and run
 
 ```bash
