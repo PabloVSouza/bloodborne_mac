@@ -54,23 +54,26 @@ The recompiled code is produced on the player's machine from their copy, and sta
 C function per game function against `src/recomp/rc.h`; `tools/recomp/recomp.sh` compiles them into
 a library:
 
-- Control flow becomes `goto`s between labels (one per instruction); calls and returns become
-  calls of the runtime and C returns.
+- The code is decoded by following its control flow from the entry. Jumps become `goto`s (labels
+  only where something jumps); returns become C returns. Calls of other recompiled functions are
+  direct C calls; other calls go through the runtime.
 - Guest registers live in a local array; the flags are computed lazily (clang drops what nothing
   reads). Vector registers stay in the CPU state, so vector instructions need no spill.
-- Memory accesses keep x86's ordering between threads (acquire/release), as the translator's do;
-  the stack is the thread's own (plain accesses).
-- In C: moves, integer arithmetic and logic, shifts by a constant, multiplies, conditional sets
-  and moves, and the common SSE/AVX moves, arithmetic, bitwise operations, compares and shuffles,
-  each as the interpreter does it. Anything else runs in the interpreter, one instruction at a
+- Memory accesses keep x86's ordering between threads (acquire/release), as the translator's do,
+  the stack's too: the game's jobs write into their creator's stack.
+- In C: moves, integer arithmetic and logic (with carry), shifts, multiplies, bit tests,
+  conditional sets and moves, locked operations (compare-and-exchange loops), and the common
+  SSE/AVX moves, arithmetic, dot products, blends, inserts and extracts, conversions, bitwise
+  operations, compares, shifts and shuffles, each as the interpreter does it. Anything else runs in the interpreter, one instruction at a
   time, so the output is complete from the start.
 - An indirect jump to an unknown place goes back to the translator; a jump out of the function is
   a tail call.
 
 The game loads the library (`BB_RECOMP_LIB`) after its patches: a function whose code changed since
 it was generated (a game patch, a hook: `bbcpu_recomp_hash`) stays with the translator.
-`BB_RECOMP_OFF=OFFSET,...` switches chosen ones off. Translated code calls recompiled functions
-directly.
+`BB_RECOMP_OFF=OFFSET,...` switches chosen ones off, `BB_RECOMP_THREADS` / `BB_RECOMP_NOT_THREADS`
+limit them to some threads (by name), `BB_RECOMP_NODIRECT=1` sends every call through the
+translator. Translated code calls recompiled functions directly.
 
 Two checks: the **recordings** (whole functions, real calls) and **per-instruction fuzzing**
 (`tools/recomp/fuzz.sh`: every distinct instruction encoding in the game, at most 30 per mnemonic,
@@ -80,6 +83,20 @@ R1 results (2026-10-10): the 24 recorded functions (2,508 instructions, 99% in C
 recorded call exactly as the originals do; in the game they run at the translator's speed (61.4 FPS
 against 61.9, up to 1.7 million calls a second). Fuzzing: 3,443 instruction forms, 200 trials each,
 no differences (a planted mistake in one flag fails 40).
+
+R2 so far (2026-10-10): the 933 busiest functions (222,285 instructions, 99.4% in C) run in the
+game on every thread at the translator's speed (62.1 FPS against 61.9). Fuzzing: 4,892 instruction
+forms, 200 trials each, no differences. Recordings, 40 calls per function: 911 of 933 functions
+match every call; the other 22 also fail when the original runs (they read the time stamp counter
+or memory other threads change). What the checks found along the way:
+
+- The interpreter's `lock cmpxchg` reported the value of a separate load after a failed exchange:
+  when another thread had changed the value back, a failed exchange looked like a successful one,
+  and two threads took the same lock. In the game this was a heap panic during save load
+  (`DLRegularHeap.cpp(710)`); recompiled code, faster on some threads, made it frequent.
+- The recorder missed `vmaskmovdqu`'s write (its address is implicit, in rdi).
+- Speed: a shared counter of recompiled calls (every thread adding to it) and the runtime between
+  recompiled functions cost 11 FPS; the instructions left to the interpreter, 7 more.
 
 ## Tools
 

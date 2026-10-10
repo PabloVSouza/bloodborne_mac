@@ -73,5 +73,7 @@ code map, for `tools/sample_guest.py` with macOS `sample`), `BB_JIT_DUMP=file` (
 - The native address space reserves 0x180000000–0x7000000000 (shared region): the guest lives
   above 0x8000000000.
 - A heap panic during save load ("DLRegularHeap.cpp(710) improper or freed") appeared while
-  vector code was much slower than integer code and vanished once both were translated: a race
-  in the game exposed by uneven thread speeds, not a translation error (the fuzzer found none).
+  vector code was much slower than integer code. It was the interpreter's `lock cmpxchg`: after a
+  failed exchange it reported the value of a separate load, which another thread could have
+  changed back, so a failed exchange looked successful and two threads took the same lock
+  (found with the recompiler, docs/RECOMPILATION.md). Uneven thread speeds made it likely.
