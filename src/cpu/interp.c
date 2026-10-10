@@ -512,19 +512,22 @@ static void divide(BbCpu *cpu, const BbInsn *in) {
         for (;;) {                                                                                \
             old = bb_load(address, size);                                                         \
             const uint64_t new_value_ = (expr);                                                   \
-            if (atomic_cas(address, size, old, new_value_)) break;                               \
+            uint64_t seen_;                                                                       \
+            if (atomic_cas(address, size, old, new_value_, &seen_)) break;                      \
         }                                                                                         \
     } while (0)
 
-static int atomic_cas(uint64_t address, int size, uint64_t expected, uint64_t desired) {
+/* One atomic compare-and-exchange; *seen gets the value the operation found (x86 cmpxchg's rax). */
+static int atomic_cas(uint64_t address, int size, uint64_t expected, uint64_t desired, uint64_t *seen) {
+    int ok;
     switch (size) {
-    case 1: { uint8_t e = (uint8_t)expected; return __atomic_compare_exchange_n((uint8_t *)address, &e, (uint8_t)desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); }
-    case 2: { uint16_t e = (uint16_t)expected; return __atomic_compare_exchange_n((uint16_t *)address, &e, (uint16_t)desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); }
-    case 4: { uint32_t e = (uint32_t)expected; return __atomic_compare_exchange_n((uint32_t *)address, &e, (uint32_t)desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); }
-    default: { uint64_t e = expected; return __atomic_compare_exchange_n((uint64_t *)address, &e, desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); }
+    case 1: { uint8_t e = (uint8_t)expected; ok = __atomic_compare_exchange_n((uint8_t *)address, &e, (uint8_t)desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); *seen = e; break; }
+    case 2: { uint16_t e = (uint16_t)expected; ok = __atomic_compare_exchange_n((uint16_t *)address, &e, (uint16_t)desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); *seen = e; break; }
+    case 4: { uint32_t e = (uint32_t)expected; ok = __atomic_compare_exchange_n((uint32_t *)address, &e, (uint32_t)desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); *seen = e; break; }
+    default: { uint64_t e = expected; ok = __atomic_compare_exchange_n((uint64_t *)address, &e, desired, 0, __ATOMIC_SEQ_CST, __ATOMIC_SEQ_CST); *seen = e; break; }
     }
+    return ok;
 }
-
 /* add/or/adc/sbb/and/sub/xor/cmp/test and their locked forms. */
 static void alu(BbCpu *cpu, const BbInsn *in) {
     const BbOp *dst = &in->op[0];
@@ -617,13 +620,10 @@ static void cmpxchg(BbCpu *cpu, const BbInsn *in) {
     uint64_t old;
     int success;
     if (dst->type == OP_MEM) {
-        const uint64_t address = bbcpu_addr(cpu, in, dst);
-        success = atomic_cas(address, size, expected, desired);
-        old = success ? expected : bb_load(address, size);
-        if (!success && old == expected) { /* changed back meanwhile: retry once as a read */
-            success = atomic_cas(address, size, expected, desired);
-            if (success) old = expected;
-        }
+        /* The value the operation itself found: a separate load after a failure could see the
+         * expected value again (another thread changed it back) and report a failed exchange as
+         * a successful one (rax == expected, ZF set): locks built on it let two threads in. */
+        success = atomic_cas(bbcpu_addr(cpu, in, dst), size, expected, desired, &old);
     } else {
         old = bbcpu_read(cpu, in, dst);
         success = old == expected;
