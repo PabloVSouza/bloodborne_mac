@@ -12,10 +12,11 @@
 
 namespace Serialization {
 
-/// bbport: a cache entry shorter than its contents claim (a write cut short when the game was
-/// closed or crashed). The loader skips the entry instead of stopping the game.
-struct CorruptedArchive : std::runtime_error {
-    CorruptedArchive() : std::runtime_error("Invalid or corrupted deserialization container/shader cache") {}
+/// bbport: a cache entry that cannot be used: shorter than what it claims to hold (a file cut
+/// short by a crash or a power loss, issue #28), or rejected by the driver while preloading. The
+/// pipeline cache drops the entry and compiles it again instead of stopping the game.
+struct CorruptData : std::runtime_error {
+    using std::runtime_error::runtime_error;
 };
 
 template <typename T>
@@ -49,8 +50,8 @@ struct Archive {
     }
 
     void Advance(size_t size) {
-        if (offset + size > container.size()) {
-            throw CorruptedArchive{};
+        if (size > container.size() - offset) {
+            throw CorruptData{"Invalid or corrupted deserialization container/shader cache"};
         }
         offset += size;
     }
@@ -113,8 +114,8 @@ struct Writer {
 struct Reader {
     template <typename T>
     void Read(T* ptr, size_t size) {
-        if (ar.offset + size > ar.container.size()) {
-            throw CorruptedArchive{};
+        if (size > ar.container.size() - ar.offset) {
+            throw CorruptData{"Invalid or corrupted deserialization container/shader cache"};
         }
         std::memcpy(reinterpret_cast<void*>(ptr), ar.CurrPtr(), size);
         ar.Advance(size);
@@ -130,6 +131,9 @@ struct Reader {
     void Read(auto& v) {
         size_t num_elements{};
         Read(num_elements);
+        if (num_elements > ar.container.size() - ar.offset) {
+            throw CorruptData{"Invalid or corrupted deserialization container/shader cache"};
+        }
         for (int i = 0; i < num_elements; ++i) {
             v.emplace_back();
             Read(v.back());
@@ -139,6 +143,9 @@ struct Reader {
     void Read(std::string& s) {
         size_t length{};
         Read(length);
+        if (length > ar.container.size() - ar.offset) {
+            throw CorruptData{"Invalid or corrupted deserialization container/shader cache"};
+        }
         s.resize(length);
         Read(s.data(), length);
     }

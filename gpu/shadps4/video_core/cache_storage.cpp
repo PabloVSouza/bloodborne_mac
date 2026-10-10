@@ -151,19 +151,24 @@ bool WriteVector(const BlobType type, std::filesystem::path&& path_, std::vector
                     LOG_ERROR(Render, "Failed to add {} to the archive", path.string().c_str());
                 }
             } else {
+                // bbport: written under a temporary name and renamed into place, so a crash or a
+                // power loss mid-write leaves the old file or none, never a cut-short one that
+                // the next start reads as a damaged entry (issue #28).
                 using namespace Common::FS;
-                // bbport: written next to it and renamed, so a write cut short (the game closed
-                // or crashed) never leaves a damaged entry under the real name.
-                auto temporary = path;
-                temporary += ".tmp";
+                auto temp = path;
+                temp += ".tmp";
+                bool written = false;
                 {
-                    const auto file = IOFile{temporary, FileAccessMode::Create};
-                    file.Write(v);
+                    const auto file = IOFile{temp, FileAccessMode::Create};
+                    written = file.IsOpen() && file.Write(v) == v.size();
                 }
-                std::error_code error;
-                std::filesystem::rename(temporary, path, error);
-                if (error) {
-                    std::filesystem::remove(temporary, error);
+                std::error_code ec;
+                if (written) {
+                    std::filesystem::rename(temp, path, ec);
+                }
+                if (!written || ec) {
+                    LOG_ERROR(Render, "Failed to write {}", path.string());
+                    std::filesystem::remove(temp, ec);
                 }
             }
         }};

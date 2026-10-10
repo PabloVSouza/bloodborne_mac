@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-or-later
 #include "bbport_overlay.h"
 
+#include <algorithm>
 #include <atomic>
 #include <chrono>
 #include <cmath>
@@ -95,11 +96,22 @@ std::string prompt_title, prompt_text;
 std::chrono::steady_clock::time_point last_present{};
 float frame_ms_avg = 0.0f;
 
+float PixelDensity(SDL_WindowID id);
+
 void SetOpen(bool value) {
     if (menu_open.exchange(value) == value) {
         return;
     }
-    ImGui::GetIO().MouseDrawCursor = value;
+    // The system cursor shows over the menu (window.cpp, from bbport 0.4); ImGui learns where it
+    // is now, not at the next motion: mouse motion is not passed on while the menu is closed.
+    if (value) {
+        if (SDL_Window* window = SDL_GetMouseFocus()) {
+            float x = 0.0f, y = 0.0f;
+            SDL_GetMouseState(&x, &y);
+            const float density = PixelDensity(SDL_GetWindowID(window));
+            ImGui::GetIO().AddMousePosEvent(x * density, y * density);
+        }
+    }
     if (!value && dirty) {
         dirty = false;
         BbSettings::Save();
@@ -190,9 +202,17 @@ void Hint(const char* text) {
 void Menu() {
     auto& s = BbSettings::Get();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
-    ImGui::SetNextWindowPos(ImVec2(viewport->WorkPos.x + 40.0f * base_scale,
-                                   viewport->WorkPos.y + 40.0f * base_scale),
-                            ImGuiCond_Appearing);
+    // Where it was moved last (bbport.ini menu_pos, a fraction of the screen; from bbport 0.4),
+    // kept on screen.
+    ImVec2 pos(viewport->WorkPos.x + 40.0f * base_scale, viewport->WorkPos.y + 40.0f * base_scale);
+    if (s.menu_x >= 0.0f && s.menu_y >= 0.0f) {
+        const float margin = 80.0f * base_scale;
+        pos.x = viewport->WorkPos.x +
+                std::clamp(s.menu_x * viewport->WorkSize.x, 0.0f, std::max(viewport->WorkSize.x - margin, 0.0f));
+        pos.y = viewport->WorkPos.y +
+                std::clamp(s.menu_y * viewport->WorkSize.y, 0.0f, std::max(viewport->WorkSize.y - margin, 0.0f));
+    }
+    ImGui::SetNextWindowPos(pos, ImGuiCond_Appearing);
     ImGui::SetNextWindowSize(ImVec2(620.0f * base_scale, 0.0f), ImGuiCond_Appearing);
     bool keep_open = true;
     // "###": the window keeps its place and size whatever the title's language.
@@ -203,6 +223,15 @@ void Menu() {
                       ImGuiWindowFlags_NoCollapse)) {
         ImGui::End();
         return;
+    }
+    // Moved: remembered (saved with the settings when the menu closes).
+    if (!ImGui::IsWindowAppearing() && viewport->WorkSize.x > 0.0f && viewport->WorkSize.y > 0.0f) {
+        const ImVec2 at = ImGui::GetWindowPos();
+        if (std::abs(at.x - pos.x) >= 1.0f || std::abs(at.y - pos.y) >= 1.0f) {
+            s.menu_x = (at.x - viewport->WorkPos.x) / viewport->WorkSize.x;
+            s.menu_y = (at.y - viewport->WorkPos.y) / viewport->WorkSize.y;
+            dirty = true;
+        }
     }
     ImGui::Text(T("menu.fps"), frame_ms_avg > 0.0f ? 1000.0f / frame_ms_avg : 0.0f,
                 frame_ms_avg);
@@ -675,6 +704,10 @@ bool Visible() {
         SetOpen(!menu_open);
     }
     return initialized && (menu_open || prompt_active || BbSettings::Get().show_fps);
+}
+
+bool MenuOpen() {
+    return menu_open;
 }
 
 bool CapturesInput() {

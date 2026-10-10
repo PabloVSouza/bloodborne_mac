@@ -38,3 +38,6 @@ patches.json
 !launcher/app/src-tauri/icons/*.png
 # README screenshots
 !docs/screenshots/*.png
+
+# AMD FidelityFX DLLs (FSR 4.1.1 is built from the user's own): never in the repository
+*.dll
