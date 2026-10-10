@@ -26,6 +26,14 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     SDL_SetNumberProperty(props, SDL_PROP_WINDOW_CREATE_HEIGHT_NUMBER, height_);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_RESIZABLE_BOOLEAN, true);
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_VULKAN_BOOLEAN, true);
+#ifdef __APPLE__
+    // macOS: a Retina-resolution drawable (from bmy/bbport-mac). Without it the CAMetalLayer is
+    // sized in points, half the panel's pixels, and macOS stretches the frame 2x. BB_RETINA=0: as
+    // before.
+    const char* retina = std::getenv("BB_RETINA");
+    SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_HIGH_PIXEL_DENSITY_BOOLEAN,
+                           !retina || retina[0] != '0');
+#endif
     const char* fullscreen = std::getenv("BB_FULLSCREEN");
     SDL_SetBooleanProperty(props, SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, fullscreen && fullscreen[0] == '1');
     base_title = title;
@@ -57,6 +65,9 @@ WindowSDL::WindowSDL(s32 width_, s32 height_, const char* title) : width{width_}
     width = w;
     height = h;
     LOG_INFO(Frontend, "Window {}x{} on {}", w, h, driver);
+#ifdef __APPLE__
+    std::printf("Window: %dx%d pixels (pixel density %.2f)\n", w, h, SDL_GetWindowPixelDensity(window));
+#endif
 }
 
 WindowSDL::~WindowSDL() {

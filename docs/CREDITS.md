@@ -13,6 +13,15 @@ project it is based on.
 - [**shadPS4**](https://github.com/shadps4-emu/shadPS4): the video core and shader recompiler
   (GPL-2.0+), and [sirit](https://github.com/shadps4-emu/sirit).
 
+## From other forks
+
+Changes taken from other ports of bbport, with thanks:
+
+- [**bmy/bbport-mac**](https://github.com/bmy/bbport-mac) (Rosetta 2 port of bbport to macOS):
+  - the Retina-resolution window (`gpu/shim/window.cpp`, `BB_RETINA`);
+  - the texture cache hashing whole images when checking a possibly changed one (the item
+    picture on the loading screen).
+
 ## Libraries
 
 - [MoltenVK](https://github.com/KhronosGroup/MoltenVK) (Apache-2.0)
