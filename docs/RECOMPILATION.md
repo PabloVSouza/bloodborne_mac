@@ -1,7 +1,7 @@
 # Recompilation
 
 > [!NOTE]
-> This work happens on the [`decomp`](https://github.com/PabloVSouza/bloodborne_mac/tree/decomp)
+> This work happens on the [`recomp`](https://github.com/PabloVSouza/bloodborne_mac/tree/recomp)
 > branch: the tools named below are there, not in `main` yet. Progress is tracked on the wiki:
 > [Recompilation status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Recompilation-status).
 
@@ -77,35 +77,35 @@ functions (`BB_NATIVE_LIB`), and the replay checks it against the recordings.
 
 ## Tools
 
-All write to `out/decomp/`.
+All write to `out/recomp/`.
 
 | Tool | What it does |
 |---|---|
-| `tools/decomp/scan.c` | Every function from the unwind tables (exact start and size), decoded with Zydis: `functions.tsv`, `calls.tsv`, `slots.tsv`, `strings.tsv` |
-| `tools/decomp/label.py` | The library of each function (`modules.tsv`), from source paths and messages, spread to neighbours |
-| `tools/decomp/profile.py` | CPU time per function and library from a macOS `sample` (`profile.tsv`) |
-| `tools/decomp/decompile.sh` | Ghidra's C for chosen functions (`c/<offset>.c`), without analysing the whole image |
+| `tools/recomp/scan.c` | Every function from the unwind tables (exact start and size), decoded with Zydis: `functions.tsv`, `calls.tsv`, `slots.tsv`, `strings.tsv` |
+| `tools/recomp/label.py` | The library of each function (`modules.tsv`), from source paths and messages, spread to neighbours |
+| `tools/recomp/profile.py` | CPU time per function and library from a macOS `sample` (`profile.tsv`) |
+| `tools/recomp/decompile.sh` | Ghidra's C for chosen functions (`c/<offset>.c`), without analysing the whole image |
 | `BB_RECORD` (`src/cpu/record.c`) | Calls of chosen functions recorded in the game (`records/<offset>.rec`) |
-| `tools/decomp/replay.sh` | Recorded calls replayed and checked |
+| `tools/recomp/replay.sh` | Recorded calls replayed and checked |
 
 ```sh
 D=deps/macos-arm64
-clang -arch arm64 -O2 -I$D/include tools/decomp/scan.c $D/lib/libZydis.a $D/lib/libZycore.a \
-    -o out/decomp/scan
-out/decomp/scan out/eboot.elf out/decomp
-python3 tools/decomp/label.py out/decomp
+clang -arch arm64 -O2 -I$D/include tools/recomp/scan.c $D/lib/libZydis.a $D/lib/libZycore.a \
+    -o out/recomp/scan
+out/recomp/scan out/eboot.elf out/recomp
+python3 tools/recomp/label.py out/recomp
 
 # A profile: 5 s of every thread, then the main thread's functions.
 SAMPLE=1 tools/mac_bench.sh prof BB_JIT_MAP=$PWD/out/jit.map
-python3 tools/decomp/profile.py out/bench_prof_*.sample.txt out/jit.map out/bench_prof_*.log Thread_<id>
+python3 tools/recomp/profile.py out/bench_prof_*.sample.txt out/jit.map out/bench_prof_*.log Thread_<id>
 
 brew install ghidra
-tools/decomp/decompile.sh 0x21b8710
+tools/recomp/decompile.sh 0x21b8710
 
 # Record calls (OFFSET:SIZE from functions.tsv) and replay them.
 tools/mac_bench.sh rec BB_RECORD=0x22928a0:247,0x227e230:579 BB_RECORD_EVERY=7 \
-    BB_RECORD_DIR=$PWD/out/decomp/records
-tools/decomp/replay.sh out/decomp/records/0x22928a0.rec
+    BB_RECORD_DIR=$PWD/out/recomp/records
+tools/recomp/replay.sh out/recomp/records/0x22928a0.rec
 ```
 
 ## Record and replay
@@ -117,7 +117,7 @@ registers at entry, the memory the function read (the first time in each epoch),
 wrote, and the calls it made with their registers. Calls run at full speed; after each one the
 memory the function reads is recorded again, so what the callee changed is in the record.
 
-`tools/decomp/replay.sh` replays each record in a child process: the game image is mapped where it
+`tools/recomp/replay.sh` replays each record in a child process: the game image is mapped where it
 was, memory is rebuilt from the record, and the function runs in the interpreter. Its calls are not
 run: each must match the recorded target and argument registers, and is answered with the
 recorded registers and memory. The registers at the return and every byte written must match.
@@ -137,15 +137,15 @@ job loop (`0x21b8710`) matches on 31 of 50; 18 of the others had other threads' 
 
 The M1 pilot: native versions written by hand from Ghidra's output. They are decompiled code, so
 they stay in `private/native/` (ignored here; its own repository), as references for the generated
-code. The interface (`src/native/bbnative.h`) and its build script (`tools/decomp/native.sh`) are
+code. The interface (`src/native/bbnative.h`) and its build script (`tools/recomp/native.sh`) are
 public. Each function has the game function's SysV
 signature; the program calls it through the guest -> host bridge, and it calls game functions
 back through the API (`BB_CALL`).
 
 ```sh
-tools/decomp/native.sh
-tools/decomp/replay.sh out/decomp/records/0x22928a0.rec --native out/decomp/libbbnative.dylib
-tools/mac_bench.sh native BB_NATIVE_LIB=$PWD/out/decomp/libbbnative.dylib  # BB_NATIVE_OFF=OFFSET,...
+tools/recomp/native.sh
+tools/recomp/replay.sh out/recomp/records/0x22928a0.rec --native out/recomp/libbbnative.dylib
+tools/mac_bench.sh native BB_NATIVE_LIB=$PWD/out/recomp/libbbnative.dylib  # BB_NATIVE_OFF=OFFSET,...
 ```
 
 The replay runs the native version natively against the same records: calls answered from the
