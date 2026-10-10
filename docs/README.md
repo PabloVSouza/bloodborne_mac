@@ -19,8 +19,9 @@
 - [Native arm64](ARM64_NATIVE.md): the x86-64 → arm64 translator in depth.
 - [macOS performance](MACOS_PERFORMANCE.md): measurements, what was changed, what could still be
   gained.
-- [Decompilation](DECOMPILATION.md): replacing the game's code with native code, one function at a
-  time (in progress, [status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Decompilation-status)).
+- [Recompilation](RECOMPILATION.md): turning the game's code into native code with a recompiler
+  that runs on the player's own copy (in progress,
+  [status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Recompilation-status)).
 - [Launcher](../launcher/app/README.md): the launcher's stack and code conventions.
 
 ## Project

@@ -46,18 +46,20 @@ patches and mods, and starts the game.
 ## Where it is going: native code
 
 Translating the game's code works, but costs CPU time, and every frame still goes through the PS4
-GPU's command format, shadPS4 and MoltenVK. The [decompilation](../DECOMPILATION.md) replaces the
-game's own functions with native code, one at a time, while the game keeps running:
+GPU's command format, shadPS4 and MoltenVK. The [recompilation](../RECOMPILATION.md) work builds a
+**recompiler**: a tool that runs on the player's Mac, reads their own `eboot.bin` and writes the
+game's functions out as C, compiled into a native library the game loads.
 
-1. A function's calls are recorded while the game runs: the memory it reads and writes, and the
-   calls it makes.
-2. A native version is written from the decompiled code (Ghidra) and checked against those
+1. Calls of game functions are recorded while the game runs: the memory they read and write, and
+   the calls they make.
+2. The recompiler generates C for the functions, and the generated code is checked against those
    recordings.
-3. It replaces the original in the game, behind a switch.
+3. The generated functions replace the translated ones, behind a switch; anything else keeps
+   running in the translator.
 
+Only the recompiler and its tools are published, never the game's code, decompiled or generated.
 The goal is a native port: the engine's graphics drawing with Metal directly. Progress:
-[Decompilation status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Decompilation-status).
-Decompiled code is not published in this repository.
+[Recompilation status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Recompilation-status).
 
 ## Where it comes from
 

@@ -1,40 +1,79 @@
-# Decompilation
+# Recompilation
 
 > [!NOTE]
 > This work happens on the [`decomp`](https://github.com/PabloVSouza/bloodborne_mac/tree/decomp)
-> branch: the tools named below are there, not in `main` yet. Its progress is tracked on the wiki:
-> [Decompilation status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Decompilation-status).
+> branch: the tools named below are there, not in `main` yet. Progress is tracked on the wiki:
+> [Recompilation status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Recompilation-status).
 
-Goal: replace the game's own code with native C++, one function at a time, while the game keeps
-running. The end state is a native port: the engine's graphics layer calling Metal directly instead
-of building PS4 command buffers for shadPS4 and MoltenVK to translate.
+Goal: the game's own code running as native arm64 code, compiled ahead of time instead of
+translated while the game runs, and in the end the engine's graphics drawing with Metal directly
+instead of building PS4 command buffers for shadPS4 and MoltenVK to translate.
 
-> [!IMPORTANT]
-> Decompiled game code is derived from Sony's copyrighted code and **is never committed to this
-> repository**. The tools here are our own; their output goes to `out/decomp/` (ignored by git).
+The way there is a **static recompiler**: a tool that runs on the player's Mac, reads *their own*
+`eboot.bin` and writes the game's functions out as C, which clang compiles into a native library
+the game loads. This project publishes the recompiler, never the game's code, as *Unleashed
+Recompiled* and N64Recomp do.
+
+## Why a recompiler, not a published decompilation
+
+Decompiled code is a translation of the game's copyrighted code: publishing it would publish a
+derivative of Sony's code, and Sony acts against Bloodborne projects. Reverse engineering for
+interoperability is lawful in many places, but that covers studying the code, not distributing
+the result. The Mario 64 decompilation has been tolerated, never cleared. (Not legal advice.)
+
+So the work is split:
+
+| Public (this repository) | Never published |
+|---|---|
+| The recompiler, its runtime, the translator | The game's code, decompiled or generated |
+| Record and replay, profiling and analysis tools | Hand-written native versions of game functions (`private/`) |
+| Annotations: function names, signatures, struct layouts (facts about the binary) | |
+
+The generated code is produced on the player's machine from their copy and stays there.
+Hand-written native functions (below) remain as private references: what the generated code is
+compared with, for correctness and for speed.
 
 ## Principles
 
-1. **Only FromSoftware's code.** Havok, FMOD, Scaleform, YEBIS, Lua and zlib are licensed
-   libraries: they keep running translated.
-2. **One function at a time, always playable.** The translator decides what runs at every call, so
-   any game function can be redirected to native code while the rest runs as before.
+1. **Only FromSoftware's code first.** Havok, FMOD, Scaleform, YEBIS, Lua and zlib are licensed
+   libraries; they can be recompiled like the rest later, the game's and engine's code comes first.
+2. **Always playable.** Recompiled functions replace the translated ones one by one; anything not
+   recompiled runs in the translator, which is also the fallback inside a generated function.
 3. **The game's own data layouts.** Guest memory is host memory and x86-64 and arm64 share the
-   LP64 layout rules: native code works on the game's live objects when its structs match.
-4. **Checked by behaviour, not by bytes.** Calls recorded during play are replayed against the
-   original and the native version; results, memory writes and calls must match.
-5. **Behind switches.** Native functions can be turned off one by one, so a broken one is found
+   LP64 layout rules: generated code works on the game's live objects.
+4. **Checked by behaviour.** Calls recorded during play are replayed against the generated code;
+   results, memory writes and calls must match exactly.
+5. **Behind switches.** Generated functions can be turned off one by one, so a wrong one is found
    by bisection.
 
 ## Milestones
 
 | | Goal | Status |
 |---|---|---|
-| M0 | Function table, library labels, CPU profile, Ghidra project, record and replay | Done |
-| M1 | Pilot: about 50 hot functions decompiled, checked and hooked in | In progress: 3 functions |
-| M2 | A whole subsystem | |
-| M3 | The main loop's hot paths | |
-| M4 | The engine's graphics layer on Metal | |
+| M0 | Function table, library labels, CPU profile, Ghidra, record and replay | Done |
+| M1 | Hand-written pilot: native functions in the game, checked by replay | Done (3 functions), stopped for the recompiler |
+| R1 | Recompiler prototype: generated C for the recorded functions, checked by replay | In progress |
+| R2 | Coverage: every function generated; the game runs recompiled, the translator as fallback | |
+| R3 | Speed: integer, flags and vector instructions in C; memory ordering relaxed where safe | |
+| R4 | Annotations: names, signatures and structs make the generated C readable | |
+| R5 | The engine's graphics on Metal, at the libGnm boundary | |
+
+## The recompiler
+
+`bbrecomp` (planned in `tools/recomp/`) reads `eboot.bin`, takes every function from the unwind
+tables, and writes one C function per game function:
+
+- Control flow becomes `goto`s between labels; calls and returns become C calls.
+- Guest registers live in local variables, flags are computed lazily (clang drops the ones no
+  instruction reads).
+- Memory accesses keep x86's ordering between threads (acquire/release), as the translator's do.
+- Any instruction the generator does not handle yet runs in the interpreter, one instruction at a
+  time: the output is complete and correct from the start and gets faster as the generator learns.
+- Calls of functions that are not recompiled, and indirect jumps to unknown places, go back to the
+  translator.
+
+The game loads the compiled library (`BB_RECOMP_LIB`) the way it loads hand-written native
+functions (`BB_NATIVE_LIB`), and the replay checks it against the recordings.
 
 ## Tools
 
@@ -94,10 +133,12 @@ cutscene with no visible slowdown. The 7 ordinary functions replay exactly on al
 job loop (`0x21b8710`) matches on 31 of 50; 18 of the others had other threads' writes.
 
 
-## Native functions
+## Hand-written native functions (private)
 
-A library of native versions (`src/native/bbnative.h`) is built by `tools/decomp/native.sh` from
-`private/native/` (ignored here; its own repository). Each function has the game function's SysV
+The M1 pilot: native versions written by hand from Ghidra's output. They are decompiled code, so
+they stay in `private/native/` (ignored here; its own repository), as references for the generated
+code. The interface (`src/native/bbnative.h`) and its build script (`tools/decomp/native.sh`) are
+public. Each function has the game function's SysV
 signature; the program calls it through the guest -> host bridge, and it calls game functions
 back through the API (`BB_CALL`).
 
@@ -118,8 +159,9 @@ more places in the game make the check stronger.
 
 First functions (2026-10-10): a bit field (`0x1089910`), a box-frustum test (`0x22928a0`) and an
 adaptive mutex release (`0x2036a40`) match all their 150 records and run natively in the game,
-about 250,000 calls a second. Each call still goes through the dispatcher (61 FPS instead of 63
-in the cutscene); calling native functions straight from translated code is next.
+about 250,000 calls a second. A direct call of a native function is translated into a call of
+it (registers synced around it, as for an interpreted instruction), not an exit to the
+dispatcher: no measurable cost left (median frame 16.6 ms with them, 16.8 ms without).
 
 ## What the image contains
 
@@ -147,3 +189,13 @@ The game's main thread is about 95% busy; 85% of its samples are in translated c
 functions ran; the busiest 69 take half of the time. The busiest one (`0x21b8710`, 13.8%) runs
 jobs and updates shared counters with atomic operations: the main thread waiting on, or helping,
 worker threads.
+
+## Gameplay profile (2026-10-10, 20 s in the Hunter's Dream)
+
+The main thread's time is spread thin: 933 functions ran, and the busiest 145 take half of it. The
+busiest one is the job loop (7.3%); no other function takes more than 1.5%. Writing functions by
+hand would take hundreds of them to matter, which is one reason for generating them all instead.
+
+A batch of 16 of the hottest small and medium functions (46 to 1,125 bytes; game, FD4 and
+Dantelion2 code), 60 calls each, recorded across loading, the cutscene and play: 15 replay exactly
+on every call; one (`0x1d37400`) on 8 of 60, not explained yet.
