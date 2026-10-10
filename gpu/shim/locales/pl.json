@@ -71,5 +71,6 @@
   "effects.effect_ssr": "Odbicia SSR (nie ma ich w oryginalnej grze)",
   "effects.skip_intro": "Pomiń filmy wprowadzające",
   "effects.debug_camera": "Wolna kamera (Krzyżyk + L3)",
-  "effects.debug_menu": "Menu debugowania (wymaga plików czcionek)"
+  "effects.debug_menu": "Menu debugowania (wymaga plików czcionek)",
+  "dlss.hint": "NVIDIA DLSS Super Resolution (karty RTX; Native AA to DLAA). Wymaga mostka DLSS i biblioteki NVIDIA obok gry; w przeciwnym razie używany jest FSR 3.1."
 }

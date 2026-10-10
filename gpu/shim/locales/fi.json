@@ -71,5 +71,6 @@
   "effects.effect_ssr": "SSR-heijastukset (eivät alkuperäisessä pelissä)",
   "effects.skip_intro": "Ohita alkuvideot",
   "effects.debug_camera": "Vapaa kamera (Risti + L3)",
-  "effects.debug_menu": "Virheenjäljitysvalikko (vaatii fonttitiedostot)"
+  "effects.debug_menu": "Virheenjäljitysvalikko (vaatii fonttitiedostot)",
+  "dlss.hint": "NVIDIA DLSS Super Resolution (RTX-näytönohjaimet; Native AA on DLAA). Vaatii DLSS-sillan ja NVIDIAn kirjaston pelin vieressä; muuten käytetään FSR 3.1:tä."
 }

@@ -71,5 +71,6 @@
   "effects.effect_ssr": "SSR-reflecties (niet in het originele spel)",
   "effects.skip_intro": "Introvideo’s overslaan",
   "effects.debug_camera": "Vrije camera (Kruis + L3)",
-  "effects.debug_menu": "Debugmenu (vereist lettertypebestanden)"
+  "effects.debug_menu": "Debugmenu (vereist lettertypebestanden)",
+  "dlss.hint": "NVIDIA DLSS Super Resolution (RTX-GPU's; Native AA is DLAA). Vereist de DLSS-brug en de bibliotheek van NVIDIA naast het spel; anders wordt FSR 3.1 gebruikt."
 }

@@ -71,5 +71,6 @@
   "effects.effect_ssr": "SSR 反射（オリジナルのゲームにはない）",
   "effects.skip_intro": "オープニング映像をスキップ",
   "effects.debug_camera": "フリーカメラ（× + L3）",
-  "effects.debug_menu": "デバッグメニュー（フォントファイルが必要）"
+  "effects.debug_menu": "デバッグメニュー（フォントファイルが必要）",
+  "dlss.hint": "NVIDIA DLSS Super Resolution（RTX GPU。Native AA は DLAA）。ゲームの横に DLSS ブリッジと NVIDIA のライブラリが必要です。ない場合は FSR 3.1 を使用します。"
 }

@@ -10,6 +10,8 @@
 #include <cstring>
 #include <mutex>
 #include <string>
+#include <string_view>
+#include <vector>
 
 #include <SDL3/SDL.h>
 #include "bbport_settings.h"
@@ -85,7 +87,6 @@ std::atomic<bool> menu_open{false};
 bool l3_down = false, r3_down = false;
 bool dirty = false; // settings changed while open: saved on close
 float base_scale = 1.0f;
-
 // The game's text dialog (ImeDialog, the character name), typed on the keyboard: drawn while it
 // is open. In fullscreen the window title that showed it is not visible (issues #17, #19).
 std::mutex prompt_mutex;
@@ -199,6 +200,8 @@ void Hint(const char* text) {
     }
 }
 
+// The settings menu as in 0.3 and 0.4: one window (moved with the mouse, its place kept in
+// bbport.ini), sections one under the other, ImGui's own widgets and keyboard/gamepad navigation.
 void Menu() {
     auto& s = BbSettings::Get();
     const ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -237,14 +240,17 @@ void Menu() {
                 frame_ms_avg);
 
     ImGui::SeparatorText(T("upscaler.section"));
-    static const char* upscalers[] = {T("upscaler.off"), "FSR 3.1", "FSR 4 (INT8)", "FSR 4.1.1 (INT8)",
-                                     T("upscaler.taa")};
-    static const char* later[] = {"DLSS", "XeSS"};
+    const char* upscalers[] = {T("upscaler.off"), "FSR 3.1", "FSR 4 (INT8)", "FSR 4.1.1 (INT8)",
+                               T("upscaler.taa"), "DLSS (NVIDIA RTX)"};
+    static_assert(sizeof(upscalers) / sizeof(upscalers[0]) == BbSettings::UpscalerCount);
+    static const char* later[] = {"XeSS"};
     int upscaler = s.upscaler;
     if (ImGui::BeginCombo(T("upscaler.label"), upscalers[upscaler])) {
         for (int i = 0; i < BbSettings::UpscalerCount; ++i) {
-            const bool supported = i == BbSettings::UpscalerFsr4 ? s.fsr4_supported.load()
-                : i == BbSettings::UpscalerFsr411 ? s.fsr411_supported.load() : true;
+            const bool supported = i == BbSettings::UpscalerFsr4     ? s.fsr4_supported.load()
+                                   : i == BbSettings::UpscalerFsr411 ? s.fsr411_supported.load()
+                                   : i == BbSettings::UpscalerDlss   ? s.dlss_supported.load()
+                                                                     : true;
             ImGui::BeginDisabled(!supported);
             if (ImGui::Selectable(upscalers[i], i == upscaler)) {
                 Store(s.upscaler, i, true);
@@ -264,12 +270,28 @@ void Menu() {
         }
         ImGui::EndCombo();
     }
-    if (const char* problem = s.fsr4_problem.load()) {
+    if (s.upscaler == BbSettings::UpscalerDlss) {
+        Hint(T("dlss.hint"));
+    }
+    const auto problem_text = [](const char* text) {
         ImGui::PushTextWrapPos();
-        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), T("fsr4.unavailable"), problem);
-        if (!BbSettings::IsFsr4(s.upscaler))
-            ImGui::TextUnformatted(T("fsr4.fallback"));
+        ImGui::TextColored(ImVec4(1.0f, 0.5f, 0.3f, 1.0f), "%s", text);
         ImGui::PopTextWrapPos();
+    };
+    if (const char* problem = s.dlss_problem.load(); problem && s.upscaler == BbSettings::UpscalerDlss) {
+        char line[192];
+        std::snprintf(line, sizeof(line), "DLSS: %s", problem);
+        problem_text(line);
+    }
+    if (const char* problem = s.fsr4_problem.load()) {
+        char line[192];
+        std::snprintf(line, sizeof(line), T("fsr4.unavailable"), problem);
+        problem_text(line);
+        if (!BbSettings::IsFsr4(s.upscaler)) {
+            ImGui::PushTextWrapPos();
+            ImGui::TextUnformatted(T("fsr4.fallback"));
+            ImGui::PopTextWrapPos();
+        }
     }
     if (BbSettings::IsFsr4(s.upscaler)) {
         if (s.upscaler == BbSettings::UpscalerFsr411) {
@@ -448,8 +470,9 @@ void FpsCounter() {
                 s.upscaler == BbSettings::UpscalerFsr3   ? "FSR 3.1"
                 : s.upscaler == BbSettings::UpscalerFsr4 ? "FSR 4"
                 : s.upscaler == BbSettings::UpscalerFsr411 ? "FSR 4.1.1"
-                : s.upscaler == BbSettings::UpscalerTaa ? "TAA"
-                                                         : "");
+                : s.upscaler == BbSettings::UpscalerTaa    ? "TAA"
+                : s.upscaler == BbSettings::UpscalerDlss   ? "DLSS"
+                                                           : "");
     ImGui::End();
 }
 
@@ -475,6 +498,59 @@ void TextPrompt() {
     ImGui::Separator();
     ImGui::TextUnformatted("Keyboard: type, Backspace = delete, Enter = OK, Esc = cancel");
     ImGui::End();
+}
+
+/// BB_MENU_KEYS_FILE=<file> (scripted tests): tokens toggle up down left right enter back l1 r1,
+/// consumed when the file appears (it is removed), one key press per frame.
+void ScriptedKeys() {
+    static const char* path = std::getenv("BB_MENU_KEYS_FILE");
+    static std::chrono::steady_clock::time_point last_check{};
+    static std::vector<std::string> queue;
+    static bool release = false;
+    static ImGuiKey held = ImGuiKey_None;
+    if (!path) {
+        return;
+    }
+    ImGuiIO& io = ImGui::GetIO();
+    if (release) {
+        io.AddKeyEvent(held, false);
+        release = false;
+        return;
+    }
+    const auto now = std::chrono::steady_clock::now();
+    if (queue.empty() && now - last_check > std::chrono::milliseconds(100)) {
+        last_check = now;
+        if (FILE* f = std::fopen(path, "r")) {
+            char token[32];
+            while (std::fscanf(f, "%31s", token) == 1) {
+                queue.emplace_back(token);
+            }
+            std::fclose(f);
+            std::remove(path);
+        }
+    }
+    if (queue.empty()) {
+        return;
+    }
+    const std::string token = queue.front();
+    queue.erase(queue.begin());
+    if (token == "toggle") {
+        SetOpen(!menu_open);
+        return;
+    }
+    held = token == "up" ? ImGuiKey_GamepadDpadUp : token == "down" ? ImGuiKey_GamepadDpadDown
+         : token == "left" ? ImGuiKey_GamepadDpadLeft : token == "right" ? ImGuiKey_GamepadDpadRight
+         : token == "enter" ? ImGuiKey_GamepadFaceDown : token == "l1" ? ImGuiKey_GamepadL1
+         : token == "r1" ? ImGuiKey_GamepadR1 : token == "kdown" ? ImGuiKey_DownArrow
+         : token == "kup" ? ImGuiKey_UpArrow : ImGuiKey_None;
+    if (token == "back") {
+        SetOpen(false);
+        return;
+    }
+    if (held != ImGuiKey_None) {
+        io.AddKeyEvent(held, true);
+        release = true;
+    }
 }
 
 } // namespace
@@ -716,12 +792,17 @@ bool CapturesInput() {
 }
 
 void Render(vk::CommandBuffer cmdbuf, vk::ImageView view, vk::Extent2D extent) {
+
     // Present interval for the FPS readout (measured also while nothing is drawn).
     const auto now = std::chrono::steady_clock::now();
     const float ms = std::chrono::duration<float, std::milli>(now - last_present).count();
     last_present = now;
     if (ms > 0.0f && ms < 1000.0f) {
         frame_ms_avg = frame_ms_avg == 0.0f ? ms : frame_ms_avg * 0.95f + ms * 0.05f;
+    }
+    if (std::getenv("BB_MENU_KEYS_FILE") && initialized) {
+        std::scoped_lock lock{imgui_mutex};
+        ScriptedKeys();
     }
     if (!Visible()) {
         return;

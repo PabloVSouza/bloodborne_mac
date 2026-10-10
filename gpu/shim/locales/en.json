@@ -71,5 +71,6 @@
   "effects.effect_ssr": "SSR reflections (not in the original game)",
   "effects.skip_intro": "Skip the intro videos",
   "effects.debug_camera": "Free camera (Cross + L3)",
-  "effects.debug_menu": "Debug menu (needs font files)"
+  "effects.debug_menu": "Debug menu (needs font files)",
+  "dlss.hint": "NVIDIA DLSS Super Resolution (RTX GPUs; Native AA is DLAA). Needs the DLSS bridge and NVIDIA's library next to the game; otherwise FSR 3.1 is used."
 }

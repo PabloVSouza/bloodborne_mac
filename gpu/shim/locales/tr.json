@@ -71,5 +71,6 @@
   "effects.effect_ssr": "SSR yansımaları (orijinal oyunda yok)",
   "effects.skip_intro": "Giriş videolarını atla",
   "effects.debug_camera": "Serbest kamera (Çarpı + L3)",
-  "effects.debug_menu": "Hata ayıklama menüsü (yazı tipi dosyaları gerekir)"
+  "effects.debug_menu": "Hata ayıklama menüsü (yazı tipi dosyaları gerekir)",
+  "dlss.hint": "NVIDIA DLSS Super Resolution (RTX GPU'lar; Native AA, DLAA'dır). Oyunun yanında DLSS köprüsü ve NVIDIA kitaplığı gerekir; aksi halde FSR 3.1 kullanılır."
 }

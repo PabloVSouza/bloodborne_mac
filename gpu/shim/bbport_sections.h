@@ -36,6 +36,7 @@ enum Id : std::uint32_t {
     EnsureResident,
     ObtainStream,  ///< ObtainBuffer's copy of a small read-only buffer into the stream buffer
     ObtainVram,    ///< ObtainBuffer's VRAM path (SynchronizeMemory)
+    LayerBind,     ///< BB_LAYER_MEMORY: BufferCache::LayerBind
     Count,
 };
 inline constexpr const char* Names[Count] = {
@@ -43,7 +44,7 @@ inline constexpr const char* Names[Count] = {
     "buffers",      "textures",    "begin render",  "vertex",       "index",
     "emit vertex",  "dynamic",     "dispatch",      "HLE shader",   "ObtainBuffer",
     "flush",        "motion",      "descriptors",   "kick",         "preupload",
-    "EnsureResident", "stream copy", "VRAM path",
+    "EnsureResident", "stream copy", "VRAM path", "layer bind",
 };
 inline std::array<std::atomic<std::uint64_t>, Count> cycles{};
 

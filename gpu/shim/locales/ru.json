@@ -71,5 +71,6 @@
   "effects.effect_ssr": "Отражения SSR (не было в игре)",
   "effects.skip_intro": "Пропуск заставок при запуске",
   "effects.debug_camera": "Свободная камера (Cross + L3)",
-  "effects.debug_menu": "Debug menu (нужны файлы шрифтов)"
+  "effects.debug_menu": "Debug menu (нужны файлы шрифтов)",
+  "dlss.hint": "NVIDIA DLSS Super Resolution (видеокарты RTX; Native AA — это DLAA). Нужны мост DLSS и библиотека NVIDIA рядом с игрой; без них используется FSR 3.1."
 }

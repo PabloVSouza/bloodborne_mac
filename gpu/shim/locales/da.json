@@ -71,5 +71,6 @@
   "effects.effect_ssr": "SSR-refleksioner (findes ikke i det originale spil)",
   "effects.skip_intro": "Spring introvideoerne over",
   "effects.debug_camera": "Fri kamera (Kryds + L3)",
-  "effects.debug_menu": "Fejlfindingsmenu (kræver skrifttypefiler)"
+  "effects.debug_menu": "Fejlfindingsmenu (kræver skrifttypefiler)",
+  "dlss.hint": "NVIDIA DLSS Super Resolution (RTX-grafikkort; Native AA er DLAA). Kræver DLSS-broen og NVIDIAs bibliotek ved siden af spillet; ellers bruges FSR 3.1."
 }

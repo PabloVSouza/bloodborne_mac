@@ -71,5 +71,6 @@
   "effects.effect_ssr": "Reflejos SSR (no están en el juego original)",
   "effects.skip_intro": "Omitir los videos de introducción",
   "effects.debug_camera": "Cámara libre (X + L3)",
-  "effects.debug_menu": "Menú de depuración (necesita archivos de fuente)"
+  "effects.debug_menu": "Menú de depuración (necesita archivos de fuente)",
+  "dlss.hint": "NVIDIA DLSS Super Resolution (GPU RTX; Native AA es DLAA). Requiere el puente DLSS y la biblioteca de NVIDIA junto al juego; si no, se usa FSR 3.1."
 }

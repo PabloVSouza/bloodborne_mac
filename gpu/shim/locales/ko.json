@@ -71,5 +71,6 @@
   "effects.effect_ssr": "SSR 반사 (원래 게임에는 없음)",
   "effects.skip_intro": "인트로 영상 건너뛰기",
   "effects.debug_camera": "자유 카메라 (X + L3)",
-  "effects.debug_menu": "디버그 메뉴 (글꼴 파일 필요)"
+  "effects.debug_menu": "디버그 메뉴 (글꼴 파일 필요)",
+  "dlss.hint": "NVIDIA DLSS Super Resolution(RTX GPU, Native AA는 DLAA). 게임 옆에 DLSS 브리지와 NVIDIA 라이브러리가 필요하며, 없으면 FSR 3.1을 사용합니다."
 }

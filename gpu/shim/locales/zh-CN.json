@@ -71,5 +71,6 @@
   "effects.effect_ssr": "SSR 反射（原版游戏没有）",
   "effects.skip_intro": "跳过开场视频",
   "effects.debug_camera": "自由镜头（叉键 + L3）",
-  "effects.debug_menu": "调试菜单（需要字体文件）"
+  "effects.debug_menu": "调试菜单（需要字体文件）",
+  "dlss.hint": "NVIDIA DLSS Super Resolution（RTX 显卡；Native AA 即 DLAA）。需要在游戏旁放置 DLSS 桥接和 NVIDIA 的库；否则使用 FSR 3.1。"
 }
