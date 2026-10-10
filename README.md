@@ -63,6 +63,10 @@ saving. On an Apple M3 Pro it runs at about **44 FPS** at 1080p with FSR 3.1
 ([performance](docs/guide/performance.md)). Only one machine has been tested so far. See the
 [known issues](docs/guide/troubleshooting.md#known-issues).
 
+**In progress: decompilation.** The game's own code is being replaced with native code, one
+function at a time, each one checked against calls recorded from the original
+([plan](docs/DECOMPILATION.md), [status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Decompilation-status)).
+
 ## Documentation
 
 | | |
@@ -75,6 +79,7 @@ saving. On an Apple M3 Pro it runs at about **44 FPS** at 1080p with FSR 3.1
 | [Troubleshooting](docs/guide/troubleshooting.md) | Common problems and known issues |
 | [Building from source](docs/guide/building.md) | For developers: build, run, package |
 | [How it works](docs/guide/how-it-works.md) | The translator, the runtime and the renderer |
+| [Decompilation](docs/DECOMPILATION.md) | Replacing the game's code with native code (in progress) |
 
 ## Acknowledgements
 

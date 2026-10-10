@@ -43,6 +43,22 @@ start-up scripts, and the launcher ([`launcher/app`](../../launcher/app), Tauri 
 launcher writes the settings and starts `run.sh`. `run.sh` checks the game folder, prepares
 patches and mods, and starts the game.
 
+## Where it is going: native code
+
+Translating the game's code works, but costs CPU time, and every frame still goes through the PS4
+GPU's command format, shadPS4 and MoltenVK. The [decompilation](../DECOMPILATION.md) replaces the
+game's own functions with native code, one at a time, while the game keeps running:
+
+1. A function's calls are recorded while the game runs: the memory it reads and writes, and the
+   calls it makes.
+2. A native version is written from the decompiled code (Ghidra) and checked against those
+   recordings.
+3. It replaces the original in the game, behind a switch.
+
+The goal is a native port: the engine's graphics drawing with Metal directly. Progress:
+[Decompilation status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Decompilation-status).
+Decompiled code is not published in this repository.
+
 ## Where it comes from
 
 Almost everything that makes the game run (the loader, the PS4 runtime, the renderer and its
