@@ -42,28 +42,44 @@ The recompiled code is produced on the player's machine from their copy, and sta
 | | Goal | Status |
 |---|---|---|
 | R0 | Groundwork: function table, library labels, CPU profile, record and replay, native functions loaded into the game and called from translated code | Done |
-| R1 | Recompiler prototype: generated C for the recorded functions, checked by replay | In progress |
-| R2 | Coverage: every function generated; the game runs recompiled, the translator as fallback | |
+| R1 | Recompiler prototype: generated C for the recorded functions, checked by replay | Done |
+| R2 | Coverage: every function generated; the game runs recompiled, the translator as fallback | In progress |
 | R3 | Speed: integer, flags and vector instructions in C; memory ordering relaxed where safe | |
 | R4 | Annotations: names, signatures and structs make the generated C readable | |
 | R5 | The engine's graphics on Metal, at the libGnm boundary | |
 
 ## The recompiler
 
-`bbrecomp` (planned in `tools/recomp/`) reads `eboot.bin`, takes every function from the unwind
-tables, and writes one C function per game function:
+`tools/recomp/bbrecomp.c` reads `eboot.bin`, takes functions from the unwind tables, and writes one
+C function per game function against `src/recomp/rc.h`; `tools/recomp/recomp.sh` compiles them into
+a library:
 
-- Control flow becomes `goto`s between labels; calls and returns become C calls.
-- Guest registers live in local variables, flags are computed lazily (clang drops the ones no
-  instruction reads).
-- Memory accesses keep x86's ordering between threads (acquire/release), as the translator's do.
-- Any instruction the generator does not handle yet runs in the interpreter, one instruction at a
-  time: the output is complete and correct from the start and gets faster as the generator learns.
-- Calls of functions that are not recompiled, and indirect jumps to unknown places, go back to the
-  translator.
+- Control flow becomes `goto`s between labels (one per instruction); calls and returns become
+  calls of the runtime and C returns.
+- Guest registers live in a local array; the flags are computed lazily (clang drops what nothing
+  reads). Vector registers stay in the CPU state, so vector instructions need no spill.
+- Memory accesses keep x86's ordering between threads (acquire/release), as the translator's do;
+  the stack is the thread's own (plain accesses).
+- In C: moves, integer arithmetic and logic, shifts by a constant, multiplies, conditional sets
+  and moves, and the common SSE/AVX moves, arithmetic, bitwise operations, compares and shuffles,
+  each as the interpreter does it. Anything else runs in the interpreter, one instruction at a
+  time, so the output is complete from the start.
+- An indirect jump to an unknown place goes back to the translator; a jump out of the function is
+  a tail call.
 
-The game loads the compiled library (`BB_RECOMP_LIB`); its functions are called straight from
-translated code, and the replay checks them against the recordings.
+The game loads the library (`BB_RECOMP_LIB`) after its patches: a function whose code changed since
+it was generated (a game patch, a hook: `bbcpu_recomp_hash`) stays with the translator.
+`BB_RECOMP_OFF=OFFSET,...` switches chosen ones off. Translated code calls recompiled functions
+directly.
+
+Two checks: the **recordings** (whole functions, real calls) and **per-instruction fuzzing**
+(`tools/recomp/fuzz.sh`: every distinct instruction encoding in the game, at most 30 per mnemonic,
+run from random states through the interpreter and through its generated C).
+
+R1 results (2026-10-10): the 24 recorded functions (2,508 instructions, 99% in C) match every
+recorded call exactly as the originals do; in the game they run at the translator's speed (61.4 FPS
+against 61.9, up to 1.7 million calls a second). Fuzzing: 3,443 instruction forms, 200 trials each,
+no differences (a planted mistake in one flag fails 40).
 
 ## Tools
 
@@ -76,7 +92,9 @@ All write to `out/recomp/`.
 | `tools/recomp/profile.py` | CPU time per function and library from a macOS `sample` (`profile.tsv`) |
 | `tools/recomp/inspect.sh` | Ghidra's view of chosen functions (`c/<offset>.c`, `.s`), for analysis and annotations |
 | `BB_RECORD` (`src/cpu/record.c`) | Calls of chosen functions recorded in the game (`records/<offset>.rec`) |
-| `tools/recomp/replay.sh` | Recorded calls replayed and checked |
+| `tools/recomp/replay.sh` | Recorded calls replayed and checked (`--recomp LIB`: the generated code) |
+| `tools/recomp/recomp.sh` | Generated C for chosen functions, compiled (`librecomp.dylib`; `BB_RECOMP_LIB`) |
+| `tools/recomp/fuzz.sh` | The generator's C for every instruction form, fuzzed against the interpreter |
 
 ```sh
 D=deps/macos-arm64
