@@ -57,7 +57,7 @@ game's functions out as C, compiled into a native library the game loads.
 3. The generated functions replace the translated ones, behind a switch; anything else keeps
    running in the translator.
 
-Only the recompiler and its tools are published, never the game's code, decompiled or generated.
+Only the recompiler and its tools are published, never the game's code.
 The goal is a native port: the engine's graphics drawing with Metal directly. Progress:
 [Recompilation status](https://github.com/PabloVSouza/bloodborne_mac/wiki/Recompilation-status).
 

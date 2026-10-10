@@ -14,24 +14,15 @@ The way there is a **static recompiler**: a tool that runs on the player's Mac, 
 the game loads. This project publishes the recompiler, never the game's code, as *Unleashed
 Recompiled* and N64Recomp do.
 
-## Why a recompiler, not a published decompilation
+## What is published
 
-Decompiled code is a translation of the game's copyrighted code: publishing it would publish a
-derivative of Sony's code, and Sony acts against Bloodborne projects. Reverse engineering for
-interoperability is lawful in many places, but that covers studying the code, not distributing
-the result. The Mario 64 decompilation has been tolerated, never cleared. (Not legal advice.)
-
-So the work is split:
-
-| Public (this repository) | Never published |
+| Published (this repository) | Never published |
 |---|---|
-| The recompiler, its runtime, the translator | The game's code, decompiled or generated |
-| Record and replay, profiling and analysis tools | Hand-written native versions of game functions (`private/`) |
-| Annotations: function names, signatures, struct layouts (facts about the binary) | |
+| The recompiler, its runtime, the translator | The game's code |
+| Record and replay, profiling and analysis tools | |
+| Annotations: function names, signatures, struct layouts | |
 
-The generated code is produced on the player's machine from their copy and stays there.
-Hand-written native functions (below) remain as private references: what the generated code is
-compared with, for correctness and for speed.
+The recompiled code is produced on the player's machine from their copy, and stays there.
 
 ## Principles
 
@@ -50,8 +41,7 @@ compared with, for correctness and for speed.
 
 | | Goal | Status |
 |---|---|---|
-| M0 | Function table, library labels, CPU profile, Ghidra, record and replay | Done |
-| M1 | Hand-written pilot: native functions in the game, checked by replay | Done (3 functions), stopped for the recompiler |
+| R0 | Groundwork: function table, library labels, CPU profile, record and replay, native functions loaded into the game and called from translated code | Done |
 | R1 | Recompiler prototype: generated C for the recorded functions, checked by replay | In progress |
 | R2 | Coverage: every function generated; the game runs recompiled, the translator as fallback | |
 | R3 | Speed: integer, flags and vector instructions in C; memory ordering relaxed where safe | |
@@ -72,8 +62,8 @@ tables, and writes one C function per game function:
 - Calls of functions that are not recompiled, and indirect jumps to unknown places, go back to the
   translator.
 
-The game loads the compiled library (`BB_RECOMP_LIB`) the way it loads hand-written native
-functions (`BB_NATIVE_LIB`), and the replay checks it against the recordings.
+The game loads the compiled library (`BB_RECOMP_LIB`); its functions are called straight from
+translated code, and the replay checks them against the recordings.
 
 ## Tools
 
@@ -84,7 +74,7 @@ All write to `out/recomp/`.
 | `tools/recomp/scan.c` | Every function from the unwind tables (exact start and size), decoded with Zydis: `functions.tsv`, `calls.tsv`, `slots.tsv`, `strings.tsv` |
 | `tools/recomp/label.py` | The library of each function (`modules.tsv`), from source paths and messages, spread to neighbours |
 | `tools/recomp/profile.py` | CPU time per function and library from a macOS `sample` (`profile.tsv`) |
-| `tools/recomp/decompile.sh` | Ghidra's C for chosen functions (`c/<offset>.c`), without analysing the whole image |
+| `tools/recomp/inspect.sh` | Ghidra's view of chosen functions (`c/<offset>.c`, `.s`), for analysis and annotations |
 | `BB_RECORD` (`src/cpu/record.c`) | Calls of chosen functions recorded in the game (`records/<offset>.rec`) |
 | `tools/recomp/replay.sh` | Recorded calls replayed and checked |
 
@@ -100,7 +90,7 @@ SAMPLE=1 tools/mac_bench.sh prof BB_JIT_MAP=$PWD/out/jit.map
 python3 tools/recomp/profile.py out/bench_prof_*.sample.txt out/jit.map out/bench_prof_*.log Thread_<id>
 
 brew install ghidra
-tools/recomp/decompile.sh 0x21b8710
+tools/recomp/inspect.sh 0x21b8710
 
 # Record calls (OFFSET:SIZE from functions.tsv) and replay them.
 tools/mac_bench.sh rec BB_RECORD=0x22928a0:247,0x227e230:579 BB_RECORD_EVERY=7 \
@@ -122,7 +112,7 @@ was, memory is rebuilt from the record, and the function runs in the interpreter
 run: each must match the recorded target and argument registers, and is answered with the
 recorded registers and memory. The registers at the return and every byte written must match.
 
-Replaying the original function checks the record; a native version will be checked the same way.
+Replaying the original function checks the record; generated code is checked the same way.
 A record is flagged when another thread changed memory the function read during the call; such
 calls (locks, job queues) cannot be replayed alone. The game's code must only touch guest memory
 for a record to be replayable: the variables the game imports (the stack canary) live in guest
@@ -132,36 +122,6 @@ First results (2026-10-10): 8 functions, 50 calls each, recorded during the Hunt
 cutscene with no visible slowdown. The 7 ordinary functions replay exactly on all 350 calls. The
 job loop (`0x21b8710`) matches on 31 of 50; 18 of the others had other threads' writes.
 
-
-## Hand-written native functions (private)
-
-The M1 pilot: native versions written by hand from Ghidra's output. They are decompiled code, so
-they stay in `private/native/` (ignored here; its own repository), as references for the generated
-code. The interface (`src/native/bbnative.h`) and its build script (`tools/recomp/native.sh`) are
-public. Each function has the game function's SysV
-signature; the program calls it through the guest -> host bridge, and it calls game functions
-back through the API (`BB_CALL`).
-
-```sh
-tools/recomp/native.sh
-tools/recomp/replay.sh out/recomp/records/0x22928a0.rec --native out/recomp/libbbnative.dylib
-tools/mac_bench.sh native BB_NATIVE_LIB=$PWD/out/recomp/libbbnative.dylib  # BB_NATIVE_OFF=OFFSET,...
-```
-
-The replay runs the native version natively against the same records: calls answered from the
-record (only the arguments it passes are compared), what it wrote found by comparing memory with
-a copy. A callee's writes into a buffer in the original's stack frame go to the buffer the native
-function passed. Floating point is compiled as on x86 (no fused multiply-add).
-
-A record only tests the paths its calls took: deliberate mistakes on rare paths (a sum exactly 0,
-a mutex with a count) passed 50 records; mistakes on common paths failed them all. More calls and
-more places in the game make the check stronger.
-
-First functions (2026-10-10): a bit field (`0x1089910`), a box-frustum test (`0x22928a0`) and an
-adaptive mutex release (`0x2036a40`) match all their 150 records and run natively in the game,
-about 250,000 calls a second. A direct call of a native function is translated into a call of
-it (registers synced around it, as for an interpreted instruction), not an exit to the
-dispatcher: no measurable cost left (median frame 16.6 ms with them, 16.8 ms without).
 
 ## What the image contains
 
@@ -193,8 +153,8 @@ worker threads.
 ## Gameplay profile (2026-10-10, 20 s in the Hunter's Dream)
 
 The main thread's time is spread thin: 933 functions ran, and the busiest 145 take half of it. The
-busiest one is the job loop (7.3%); no other function takes more than 1.5%. Writing functions by
-hand would take hundreds of them to matter, which is one reason for generating them all instead.
+busiest one is the job loop (7.3%); no other function takes more than 1.5%. No small set of
+functions dominates: the CPU side gets faster by recompiling all of them.
 
 A batch of 16 of the hottest small and medium functions (46 to 1,125 bytes; game, FD4 and
 Dantelion2 code), 60 calls each, recorded across loading, the cutscene and play: 15 replay exactly
